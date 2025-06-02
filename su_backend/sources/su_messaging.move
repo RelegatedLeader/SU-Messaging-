@@ -4,6 +4,7 @@ module su_backend::su_messaging {
     use sui::tx_context;
     use sui::transfer;
     use sui::clock;
+    use sui::event; // Import the event module
 
     /// User profile struct
     public struct User has key, store {
@@ -19,6 +20,13 @@ module su_backend::su_messaging {
         recipient: address,
         encrypted_content: vector<u8>,
         timestamp: u64,
+    }
+
+    /// Event emitted when a message is created
+    public struct MessageCreated has copy, drop {
+        message_id: object::ID,
+        sender: address,
+        recipient: address,
     }
 
     /// Register a new user
@@ -45,6 +53,12 @@ module su_backend::su_messaging {
             encrypted_content,
             timestamp: clock::timestamp_ms(clock),
         };
+        // Emit the MessageCreated event
+        event::emit(MessageCreated {
+            message_id: object::id(&message),
+            sender: tx_context::sender(ctx),
+            recipient,
+        });
         transfer::share_object(message);
     }
 
