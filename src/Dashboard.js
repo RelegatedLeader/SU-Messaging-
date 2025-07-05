@@ -21,7 +21,7 @@ function Dashboard() {
     try {
       const senderAddress = currentAccount.address;
       const packageId =
-        "0x62c1db5b7060a2d7207430b62c94dcfa50aaf1d5a09fb3a39f2869c86cd6f61b";
+        "0x3f455d572c2b923918a0623bef2e075b9870dc650c2f9e164aa2ea5693506d80";
 
       // Query events with pagination
       let allEvents = [];
@@ -36,7 +36,7 @@ function Dashboard() {
           limit: 50,
           cursor,
         });
-        console.log("Events response for recent chats:", response);
+        console.log("Events response for recent chats:", response.data);
         allEvents = [...allEvents, ...response.data];
         cursor = response.nextCursor;
         hasNextPage = response.hasNextPage;
@@ -44,7 +44,7 @@ function Dashboard() {
 
       console.log("Fetched events for recent chats:", allEvents);
 
-      // Extract unique recipients
+      // Extract unique recipients and fetch their display names with last message
       const recipients = new Set();
       for (const event of allEvents) {
         const { sender, recipient } = event.parsedJson;
@@ -58,7 +58,51 @@ function Dashboard() {
         }
       }
 
-      setRecentChats(Array.from(recipients));
+      const recipientList = Array.from(recipients);
+      const chatData = await Promise.all(
+        recipientList.map(async (address) => {
+          const objects = await client.getOwnedObjects({
+            owner: address,
+            options: { showType: true, showContent: true },
+          });
+          const userObject = objects.data.find((obj) =>
+            obj.data.type.includes(`${packageId}::su_messaging::User`)
+          );
+          const displayName = userObject?.data.content.fields.display_name
+            ? new TextDecoder().decode(
+                new Uint8Array(userObject.data.content.fields.display_name)
+              )
+            : address.slice(0, 6) + "...";
+
+          // Get the last message (sent or received) with debugging
+          const relevantEvents = allEvents.filter(
+            (event) =>
+              event.parsedJson.sender === address ||
+              event.parsedJson.recipient === address
+          );
+          const lastEvent = relevantEvents.sort(
+            (a, b) => b.timestamp - a.timestamp
+          )[0];
+          const lastMessage = lastEvent
+            ? new TextDecoder().decode(
+                new Uint8Array(lastEvent.parsedJson.encrypted_content)
+              )
+            : "No messages yet";
+          console.log(`Last message for ${address}: ${lastMessage}`); // Debug log
+
+          // Simulate new messages only from the other user (unread)
+          const hasNewMessages = allEvents.some(
+            (event) =>
+              event.parsedJson.sender === address && // From other user
+              event.parsedJson.recipient === senderAddress && // To current user
+              !event.parsedJson.is_read // Unread
+          );
+
+          return { address, displayName, lastMessage, hasNewMessages };
+        })
+      );
+
+      setRecentChats(chatData);
     } catch (err) {
       setError("Failed to fetch recent chats: " + err.message);
       console.error(err);
@@ -82,8 +126,10 @@ function Dashboard() {
       return;
     }
 
-    // Navigate to the chat page with the recipient address
-    navigate(`/chat/${recipientAddress}`);
+    // Navigate to the chat page with the recipient address, removing new message indicator
+    navigate(`/chat/${recipientAddress}`, {
+      state: { clearNewMessages: true },
+    });
   };
 
   return (
@@ -104,8 +150,8 @@ function Dashboard() {
               onChange={(e) => setRecipientAddress(e.target.value)}
               required
               style={{
-                backgroundColor: "var(--accent-dark)",
-                color: "var(--text-primary)",
+                backgroundColor: "#ffffff", // White background
+                color: "#000000", // Black text for visibility
                 borderColor: "var(--primary-blue)",
               }}
             />
@@ -134,23 +180,68 @@ function Dashboard() {
           <p>No recent chats yet.</p>
         ) : (
           <ListGroup>
-            {recentChats.map((address, index) => (
+            {recentChats.map((chat, index) => (
               <ListGroup.Item
                 key={index}
                 style={{
                   backgroundColor: "var(--accent-dark)",
                   color: "var(--text-primary)",
+                  position: "relative",
+                  padding: "10px",
+                  display: "flex",
+                  flexDirection: "column",
                 }}
               >
                 <Link
-                  to={`/chat/${address}`}
+                  to={`/chat/${chat.address}`}
+                  onClick={() => {
+                    if (chat.hasNewMessages) {
+                      setRecentChats((prevChats) =>
+                        prevChats.map((c) =>
+                          c.address === chat.address
+                            ? { ...c, hasNewMessages: false }
+                            : c
+                        )
+                      );
+                    }
+                  }}
                   style={{
-                    color: "var(--primary-blue)",
+                    color: "#ffffff", // White text
                     textDecoration: "none",
+                    fontWeight: "bold", // Bold text
+                    marginBottom: "5px",
                   }}
                 >
-                  {address}
+                  {chat.displayName}
                 </Link>
+                <div
+                  style={{
+                    color: "#ffffff", // White text
+                    fontWeight: "normal",
+                    padding: "5px",
+                    backgroundColor: "#333", // Dark background for contrast
+                    borderRadius: "5px",
+                    maxWidth: "80%",
+                    wordWrap: "break-word",
+                    border: "1px solid #89CFF0", // Add border for visibility
+                  }}
+                >
+                  {chat.lastMessage || "No message content available"}{" "}
+                  {/* Fallback text */}
+                </div>
+                {chat.hasNewMessages && (
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: "5px",
+                      right: "5px",
+                      width: "10px",
+                      height: "10px",
+                      backgroundColor: "#89CFF0", // Baby blue
+                      borderRadius: "50%",
+                    }}
+                  />
+                )}
               </ListGroup.Item>
             ))}
           </ListGroup>

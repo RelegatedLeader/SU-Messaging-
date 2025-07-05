@@ -7,7 +7,13 @@ import {
   useWalletKit,
   ConnectButton,
 } from "@mysten/wallet-kit";
-import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+  Link,
+} from "react-router-dom";
 import { SuiClient } from "@mysten/sui.js/client";
 import logo from "./img/su-logo.png";
 import Dashboard from "./Dashboard";
@@ -43,14 +49,15 @@ function AppContent() {
     fetchUserName();
   }, [isConnected, currentAccount]);
 
-  const handleFreeFlowClick = () => {
-    console.log("FreeFlow Mode selected!");
-  };
-
   return (
     <Router>
       <div>
-        <Navbar bg="dark" variant="dark" expand="lg">
+        <Navbar
+          bg="dark"
+          variant="dark"
+          expand="lg"
+          style={{ position: "sticky", top: 0, zIndex: 1000 }}
+        >
           <Container>
             <Navbar.Brand className="d-flex align-items-center gap-2">
               <Link to="/">
@@ -88,22 +95,7 @@ function AppContent() {
                 <p className="text-secondary">
                   A decentralized messaging app powered by the SUI blockchain.
                 </p>
-                <p className="text-secondary">
-                  Connect your wallet for Web3 mode or try FreeFlow Mode for
-                  beginners!
-                </p>
                 <div className="mt-4">
-                  <Button
-                    variant="primary"
-                    className="mx-2"
-                    style={{
-                      backgroundColor: "var(--primary-blue)",
-                      borderColor: "var(--primary-blue)",
-                    }}
-                    onClick={handleFreeFlowClick}
-                  >
-                    Try FreeFlow Mode
-                  </Button>
                   <Button
                     as={Link}
                     to="/dashboard"
@@ -116,7 +108,10 @@ function AppContent() {
               </Container>
             }
           />
-          <Route path="/dashboard" element={<Dashboard />} />
+          <Route
+            path="/dashboard"
+            element={isConnected ? <Dashboard /> : <Navigate to="/" replace />}
+          />
           <Route path="/chat/:id" element={<Chat />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>

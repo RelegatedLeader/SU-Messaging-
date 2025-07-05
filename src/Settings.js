@@ -33,7 +33,7 @@ function Settings() {
     try {
       const tx = new TransactionBlock();
       const packageId =
-        "0x62c1db5b7060a2d7207430b62c94dcfa50aaf1d5a09fb3a39f2869c86cd6f61b";
+        "0x3f455d572c2b923918a0623bef2e075b9870dc650c2f9e164aa2ea5693506d80";
 
       tx.moveCall({
         target: `${packageId}::su_messaging::register`,
