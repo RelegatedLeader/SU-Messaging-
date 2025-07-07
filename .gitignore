@@ -21,3 +21,6 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Exclude large binary files (from su-backend)
+sui-testnet-v1.51.2-ubuntu-x86_64.tgz

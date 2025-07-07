@@ -1,0 +1,9 @@
+[package]
+name = "su_backend"
+edition = "2024.beta"
+
+[addresses]
+su_backend = "0x0" # Use 0x0 for publishing; the actual address will be set by the CLI
+
+[dependencies]
+Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "mainnet" }
