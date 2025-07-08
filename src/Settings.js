@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { Container, Form, Button, Alert } from "react-bootstrap";
+import { Container, Form, Button, Alert, Modal } from "react-bootstrap";
 import { TransactionBlock } from "@mysten/sui.js/transactions";
 import { useWalletKit } from "@mysten/wallet-kit";
+import { SuiClient } from "@mysten/sui.js/client";
 
 function Settings() {
-  const { signAndExecuteTransactionBlock, isConnected } = useWalletKit();
+  const { signAndExecuteTransactionBlock, isConnected, currentAccount } =
+    useWalletKit();
   const [displayName, setDisplayName] = useState("");
   const [currentName, setCurrentName] = useState("");
   const [registrationStatus, setRegistrationStatus] = useState(null);
@@ -13,12 +15,34 @@ function Settings() {
   const [disableWalletPopup, setDisableWalletPopup] = useState(
     localStorage.getItem("disableWalletPopup") === "true"
   );
+  const client = new SuiClient({ url: "https://fullnode.mainnet.sui.io:443" });
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [donationAmount, setDonationAmount] = useState("");
+  const [subscriptionStatus, setSubscriptionStatus] = useState(null);
 
   useEffect(() => {
-    // Load current display name (placeholder logic; we'll fetch from blockchain later)
-    const savedName = localStorage.getItem("currentDisplayName");
-    if (savedName) setCurrentName(savedName);
-  }, []);
+    const fetchCurrentName = async () => {
+      if (isConnected && currentAccount) {
+        const objects = await client.getOwnedObjects({
+          owner: currentAccount.address,
+          options: { showType: true, showContent: true },
+        });
+        const userObject = objects.data.find((obj) =>
+          obj.data.type.includes(
+            "0x3c7d131d38c117cbc75e3a8349ea3c841776ad6c6168e9590ba1fc4478018799::su_messaging::User"
+          )
+        );
+        const savedName = userObject?.data.content.fields.display_name
+          ? new TextDecoder().decode(
+              new Uint8Array(userObject.data.content.fields.display_name)
+            )
+          : localStorage.getItem("currentDisplayName");
+        setCurrentName(savedName || currentAccount.address.slice(0, 6) + "...");
+        if (savedName) setDisplayName(savedName);
+      }
+    };
+    fetchCurrentName();
+  }, [isConnected, currentAccount]);
 
   const handleRegisterOrUpdate = async (e) => {
     e.preventDefault();
@@ -33,21 +57,21 @@ function Settings() {
     try {
       const tx = new TransactionBlock();
       const packageId =
-        "0x3f455d572c2b923918a0623bef2e075b9870dc650c2f9e164aa2ea5693506d80";
+        "0x3c7d131d38c117cbc75e3a8349ea3c841776ad6c6168e9590ba1fc4478018799";
 
       tx.moveCall({
         target: `${packageId}::su_messaging::register`,
-        arguments: [tx.pure(displayName)],
+        arguments: [tx.pure(displayName, "string")],
       });
 
       const result = await signAndExecuteTransactionBlock({
         transactionBlock: tx,
         options: disableWalletPopup
           ? { showEffects: true }
-          : { showEffects: true, showObjectChanges: true }, // Simplified for now; adjust SDK for true disable later
+          : { showEffects: true, showObjectChanges: true },
       });
 
-      localStorage.setItem("currentDisplayName", displayName); // Store the name locally
+      localStorage.setItem("currentDisplayName", displayName);
       setCurrentName(displayName);
       setRegistrationStatus(
         displayName === currentName
@@ -65,20 +89,152 @@ function Settings() {
     const newValue = !disableWalletPopup;
     setDisableWalletPopup(newValue);
     localStorage.setItem("disableWalletPopup", newValue);
-    // Note: True wallet pop-up disable requires SDK/wallet integration; this is a placeholder.
+  };
+
+  const handleSubscribe = async () => {
+    if (!isConnected) {
+      setSubscriptionStatus("Please connect your wallet first.");
+      return;
+    }
+
+    setError(null);
+    setSubscriptionStatus(null);
+
+    try {
+      const tx = new TransactionBlock();
+      const subscriptionAmount = 0.5; // Approx. $10 worth of SUI (adjust based on current price)
+      const donation = parseFloat(donationAmount) || 0;
+
+      tx.transferObjects(
+        [
+          tx.splitCoins(tx.gas, [
+            tx.pure(Math.floor(subscriptionAmount * 1e9)),
+          ]),
+        ],
+        tx.pure(
+          "0xd1b0ff621a6803c8f0cd8051359ce312ece62b485e010e32b58a99d5ec13201c"
+        )
+      );
+
+      if (donation > 0) {
+        tx.transferObjects(
+          [tx.splitCoins(tx.gas, [tx.pure(Math.floor(donation * 1e9))])],
+          tx.pure(
+            "0xd1b0ff621a6803c8f0cd8051359ce312ece62b485e010e32b58a99d5ec13201c"
+          )
+        );
+      }
+
+      const result = await signAndExecuteTransactionBlock({
+        transactionBlock: tx,
+        options: { showEffects: true },
+      });
+
+      setSubscriptionStatus("Subscription successful! Membership granted.");
+      console.log("Subscription result:", result);
+    } catch (err) {
+      setSubscriptionStatus("Subscription failed: " + err.message);
+      console.error(err);
+    }
   };
 
   return (
-    <Container className="mt-5">
-      <h2 className="text-center">Settings</h2>
+    <Container
+      className="mt-5 position-relative"
+      style={{
+        maxWidth: "1200px",
+        minHeight: "600px",
+        display: "flex",
+        flexDirection: "column",
+        background: "linear-gradient(135deg, #1a0033, #330066)",
+        border: "5px solid #ff00ff",
+        borderRadius: "15px",
+        boxShadow: "0 0 20px #00ffff, 0 0 10px #ff00ff inset",
+        fontFamily: "Orbitron, sans-serif",
+        color: "#00ffff",
+        padding: "10px",
+        animation: "colorShift 10s infinite",
+      }}
+    >
+      <style>{`
+        @keyframes colorShift {
+          0% { border-color: #ff00ff; background: linear-gradient(135deg, #1a0033, #330066); }
+          33% { border-color: #00ffff; background: linear-gradient(135deg, #330066, #440088); }
+          66% { border-color: #ff00ff; background: linear-gradient(135deg, #440088, #1a0033); }
+          100% { border-color: #00ffff; background: linear-gradient(135deg, #1a0033, #330066); }
+        }
+      `}</style>
+      <div
+        style={{
+          position: "absolute",
+          top: "10px",
+          right: "10px",
+          cursor: "pointer",
+        }}
+        onClick={() => setShowSubscriptionModal(true)}
+      >
+        <div
+          style={{
+            width: "50px",
+            height: "50px",
+            background: "linear-gradient(45deg, #ffd700, #daa520)",
+            borderRadius: "50%",
+            animation: "eagleFlap 2s infinite",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            boxShadow: "0 0 10px #ffd700",
+          }}
+        >
+          <span
+            style={{
+              color: "#000",
+              fontSize: "20px",
+              textShadow: "0 0 5px #fff",
+            }}
+          >
+            🦅
+          </span>
+        </div>
+        <style>{`
+          @keyframes eagleFlap {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+          }
+        `}</style>
+      </div>
+      <h2
+        className="text-center"
+        style={{ textShadow: "0 0 15px #00ffff", marginBottom: "20px" }}
+      >
+        Settings
+      </h2>
       <div className="mt-4">
         <Form
           onSubmit={handleRegisterOrUpdate}
           className="mx-auto"
-          style={{ maxWidth: "400px" }}
+          style={{
+            maxWidth: "400px",
+            border: "2px solid #ff00ff",
+            padding: "15px",
+            borderRadius: "8px",
+            boxShadow: "0 0 15px rgba(0, 255, 255, 0.5)",
+            background: "rgba(26, 0, 51, 0.8)",
+            animation: "formColorShift 10s infinite",
+          }}
         >
+          <style>{`
+            @keyframes formColorShift {
+              0% { border-color: #ff00ff; }
+              33% { border-color: #00ffff; }
+              66% { border-color: #ff00ff; }
+              100% { border-color: #ff00ff; }
+            }
+          `}</style>
           <Form.Group controlId="displayName">
-            <Form.Label>Update Display Name on SUI Blockchain</Form.Label>
+            <Form.Label style={{ textShadow: "0 0 5px #ff00ff" }}>
+              Update Display Name on SUI Blockchain
+            </Form.Label>
             <Form.Control
               type="text"
               placeholder="Enter your display name"
@@ -86,10 +242,17 @@ function Settings() {
               onChange={(e) => setDisplayName(e.target.value)}
               required
               style={{
-                backgroundColor: "var(--accent-dark)",
-                color: "var(--text-primary)",
-                borderColor: "var(--primary-blue)",
+                backgroundColor: "#1a0033",
+                color: "#00ffff",
+                border: "1px dashed #ff00ff",
+                borderRadius: "5px",
+                padding: "10px",
+                fontSize: "14px",
+                textShadow: "0 0 3px #ff00ff",
+                transition: "border-color 0.3s",
               }}
+              onFocus={(e) => (e.target.style.borderColor = "#00ffff")}
+              onBlur={(e) => (e.target.style.borderColor = "#ff00ff")}
             />
           </Form.Group>
           <Form.Group controlId="encryptMessages" className="mt-3">
@@ -98,7 +261,7 @@ function Settings() {
               label="Enable Message Encryption"
               checked={encryptMessages}
               onChange={(e) => setEncryptMessages(e.target.checked)}
-              style={{ color: "var(--text-primary)" }}
+              style={{ color: "#00ffff", textShadow: "0 0 3px #ff00ff" }}
             />
           </Form.Group>
           <Form.Group controlId="disableWalletPopup" className="mt-3">
@@ -107,7 +270,7 @@ function Settings() {
               label="Disable Wallet Pop-up (Free Option)"
               checked={disableWalletPopup}
               onChange={handleToggleWalletPopup}
-              style={{ color: "var(--text-primary)" }}
+              style={{ color: "#00ffff", textShadow: "0 0 3px #ff00ff" }}
             />
           </Form.Group>
           <Button
@@ -115,24 +278,215 @@ function Settings() {
             type="submit"
             className="mt-3"
             style={{
-              backgroundColor: "var(--primary-blue)",
-              borderColor: "var(--primary-blue)",
+              backgroundColor: "#ff00ff",
+              borderColor: "#ff00ff",
+              textShadow: "0 0 5px #00ffff",
+              padding: "10px 20px",
+              fontSize: "16px",
+              transition: "background-color 0.3s, border-color 0.3s",
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.backgroundColor = "#00ffff";
+              e.target.style.borderColor = "#00ffff";
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.backgroundColor = "#ff00ff";
+              e.target.style.borderColor = "#ff00ff";
             }}
           >
             {currentName ? "Update Profile" : "Register"}
           </Button>
         </Form>
         {registrationStatus && (
-          <Alert variant="success" className="mt-3">
+          <Alert
+            variant="success"
+            className="mt-3"
+            style={{
+              backgroundColor: "#330066",
+              border: "1px solid #ff00ff",
+              color: "#00ffff",
+              textShadow: "0 0 3px #ff00ff",
+              maxWidth: "400px",
+              margin: "10px auto",
+              animation: "alertColorShift 10s infinite",
+            }}
+          >
+            <style>{`
+              @keyframes alertColorShift {
+                0% { border-color: #ff00ff; }
+                33% { border-color: #00ffff; }
+                66% { border-color: #ff00ff; }
+                100% { border-color: #ff00ff; }
+              }
+            `}</style>
             {registrationStatus}
           </Alert>
         )}
         {error && (
-          <Alert variant="danger" className="mt-3">
+          <Alert
+            variant="danger"
+            className="mt-3"
+            style={{
+              backgroundColor: "#330066",
+              border: "1px solid #ff00ff",
+              color: "#ff0000",
+              maxWidth: "400px",
+              margin: "10px auto",
+              animation: "alertColorShift 10s infinite",
+            }}
+          >
             {error}
           </Alert>
         )}
       </div>
+
+      <Modal
+        show={showSubscriptionModal}
+        onHide={() => setShowSubscriptionModal(false)}
+        centered
+        style={{ background: "rgba(0, 0, 0, 0.8)" }}
+      >
+        <Modal.Header
+          closeButton
+          style={{
+            background: "#330066",
+            borderBottom: "2px solid #ff00ff",
+            color: "#00ffff",
+            textShadow: "0 0 5px #ff00ff",
+            animation: "modalHeaderShift 10s infinite",
+          }}
+        >
+          <style>{`
+            @keyframes modalHeaderShift {
+              0% { border-color: #ff00ff; }
+              33% { border-color: #00ffff; }
+              66% { border-color: #ff00ff; }
+              100% { border-color: #ff00ff; }
+            }
+          `}</style>
+          <Modal.Title>Subscribe to Membership</Modal.Title>
+        </Modal.Header>
+        <Modal.Body
+          style={{
+            background: "#1a0033",
+            color: "#00ffff",
+            textShadow: "0 0 3px #ff00ff",
+            padding: "25px", // Increased padding for more space
+            maxWidth: "500px", // Enlarged modal width
+            margin: "0 auto",
+            animation: "modalBodyShift 10s infinite",
+          }}
+        >
+          <style>{`
+            @keyframes modalBodyShift {
+              0% { background: #1a0033; }
+              33% { background: #330066; }
+              66% { background: #440088; }
+              100% { background: #1a0033; }
+            }
+          `}</style>
+          <p>
+            Become a member by sending $10 worth of SUI (approx. 0.5 SUI) to{" "}
+            <strong
+              style={{
+                color: "#ffd700", // Gold color for the address
+                fontSize: "14px", // Reduced font size to fit
+                wordBreak: "break-all", // Ensures the address breaks properly
+              }}
+            >
+              <br />
+              0xd1b0ff621a6803c8f0cd8051359ce312ece62b485e010e32b58a99d5ec13201c
+            </strong>
+            <br />
+            <br />
+            Minimum amount required is 0.5 SUI.
+          </p>
+          <Button
+            variant="success"
+            onClick={handleSubscribe}
+            style={{
+              backgroundColor: "#ff00ff",
+              borderColor: "#ff00ff",
+              textShadow: "0 0 5px #00ffff",
+              marginTop: "10px",
+              transition: "background-color 0.3s, border-color 0.3s",
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.backgroundColor = "#00ffff";
+              e.target.style.borderColor = "#00ffff";
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.backgroundColor = "#ff00ff";
+              e.target.style.borderColor = "#ff00ff";
+            }}
+          >
+            Pay Subscription (0.5 SUI)
+          </Button>
+          <Form.Group controlId="donationAmount" className="mt-3">
+            <Form.Label>Optional Donation (SUI)</Form.Label>
+            <Form.Control
+              type="number"
+              placeholder="Enter donation amount"
+              value={donationAmount}
+              onChange={(e) => setDonationAmount(e.target.value)}
+              style={{
+                backgroundColor: "#1a0033",
+                color: "#00ffff",
+                border: "1px dashed #ff00ff",
+                borderRadius: "5px",
+                padding: "10px",
+                transition: "border-color 0.3s",
+              }}
+              onFocus={(e) => (e.target.style.borderColor = "#00ffff")}
+              onBlur={(e) => (e.target.style.borderColor = "#ff00ff")}
+            />
+          </Form.Group>
+          <Button
+            variant="warning"
+            onClick={() => {
+              if (donationAmount && parseFloat(donationAmount) > 0)
+                handleSubscribe();
+            }}
+            style={{
+              backgroundColor: "#ff9900",
+              borderColor: "#ff9900",
+              textShadow: "0 0 5px #fff",
+              marginTop: "10px",
+              transition: "background-color 0.3s, border-color 0.3s",
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.backgroundColor = "#ffcc00";
+              e.target.style.borderColor = "#ffcc00";
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.backgroundColor = "#ff9900";
+              e.target.style.borderColor = "#ff9900";
+            }}
+            disabled={!donationAmount || parseFloat(donationAmount) <= 0}
+          >
+            Donate
+          </Button>
+          {subscriptionStatus && (
+            <Alert
+              variant={
+                subscriptionStatus.includes("successful") ? "success" : "danger"
+              }
+              className="mt-3"
+              style={{
+                backgroundColor: "#330066",
+                border: "1px solid #ff00ff",
+                color: subscriptionStatus.includes("successful")
+                  ? "#00ffff"
+                  : "#ff0000",
+                textShadow: "0 0 3px #ff00ff",
+                animation: "alertColorShift 10s infinite",
+              }}
+            >
+              {subscriptionStatus}
+            </Alert>
+          )}
+        </Modal.Body>
+      </Modal>
     </Container>
   );
 }

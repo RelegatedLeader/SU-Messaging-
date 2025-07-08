@@ -12,6 +12,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { TransactionBlock } from "@mysten/sui.js/transactions";
 import { useWalletKit } from "@mysten/wallet-kit";
 import { SuiClient } from "@mysten/sui.js/client";
+import * as bcs from "@mysten/bcs";
+import Long from "long";
 
 function Chat() {
   const { id: recipientAddress } = useParams();
@@ -21,7 +23,7 @@ function Chat() {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const [sendStatus, setSendStatus] = useState(false);
-  const [error, setError] = useState(null); // Fixed: Ensure setError is defined
+  const [error, setError] = useState(null);
   const [recipientName, setRecipientName] = useState(
     recipientAddress || "Stranger"
   );
@@ -30,9 +32,9 @@ function Chat() {
   );
   const [recentChats, setRecentChats] = useState([]);
   const chatContentRef = useRef(null);
-  const client = new SuiClient({ url: "https://fullnode.mainnet.sui.io:443" }); // Mainnet endpoint
+  const client = new SuiClient({ url: "https://fullnode.mainnet.sui.io:443" });
   const packageId =
-    "0x3c7d131d38c117cbc75e3a8349ea3c841776ad6c6168e9590ba1fc4478018799"; // Deployed Mainnet package ID
+    "0x3c7d131d38c117cbc75e3a8349ea3c841776ad6c6168e9590ba1fc4478018799";
 
   useEffect(() => {
     fetchMessages();
@@ -44,27 +46,33 @@ function Chat() {
       }
     };
     fetchNames();
-    if (chatContentRef.current) {
-      chatContentRef.current.scrollTop = chatContentRef.current.scrollHeight;
-    }
   }, [isConnected, currentAccount, recipientAddress]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   const fetchUserName = async (address) => {
     if (!isConnected || !currentAccount) return address.slice(0, 6) + "...";
-    const objects = await client.getOwnedObjects({
-      owner: address,
-      options: { showType: true, showContent: true },
-    });
-    const userObject = objects.data.find((obj) =>
-      obj.data.type.includes(
-        "0x3f455d572c2b923918a0623bef2e075b9870dc650c2f9e164aa2ea5693506d80::su_messaging::User"
-      )
-    );
-    return userObject?.data.content.fields.display_name
-      ? new TextDecoder().decode(
-          new Uint8Array(userObject.data.content.fields.display_name)
+    try {
+      const objects = await client.getOwnedObjects({
+        owner: address,
+        options: { showType: true, showContent: true },
+      });
+      const userObject = objects.data.find((obj) =>
+        obj.data.type.includes(
+          "0x3f455d572c2b923918a0623bef2e075b9870dc650c2f9e164aa2ea5693506d80::su_messaging::User"
         )
-      : address.slice(0, 6) + "...";
+      );
+      return userObject?.data.content.fields.display_name
+        ? new TextDecoder().decode(
+            new Uint8Array(userObject.data.content.fields.display_name)
+          )
+        : address.slice(0, 6) + "...";
+    } catch (err) {
+      console.error("Failed to fetch username:", err);
+      return address.slice(0, 6) + "...";
+    }
   };
 
   const fetchMessages = async () => {
@@ -80,43 +88,82 @@ function Chat() {
           query: { MoveEventType: `${packageId}::message::MessageCreated` },
           limit: 100,
           cursor,
+          order: "ascending",
         });
+        console.log("Query response:", response.data);
         allEvents = [...allEvents, ...response.data];
         cursor = response.nextCursor;
         hasNextPage = response.hasNextPage;
       } while (hasNextPage);
 
       const fetchedMessages = [];
+      const seenIds = new Set();
       for (const event of allEvents) {
-        const { id, sender, recipient } = event.parsedJson || {};
+        const { sender, recipient } = event.parsedJson || {};
+        if (!sender || !recipient) continue;
         if (
           (sender === senderAddress && recipient === recipientAddress) ||
           (sender === recipientAddress && recipient === senderAddress)
         ) {
-          const messageObj = await client.getObject({
-            id: id,
-            options: { showContent: true },
-          });
-          if (
-            messageObj.data &&
-            messageObj.data.content &&
-            messageObj.data.content.fields
-          ) {
-            const fields = messageObj.data.content.fields;
-            fetchedMessages.push({
-              id: id,
-              sender: fields.sender,
-              recipient: fields.recipient,
-              content: new TextDecoder().decode(new Uint8Array(fields.content)),
-              timestamp: fields.timestamp,
-            });
+          const [senderObjects, recipientObjects] = await Promise.all([
+            client.getOwnedObjects({
+              owner: sender,
+              filter: {
+                MatchAll: [{ StructType: `${packageId}::message::Message` }],
+              },
+              options: { showContent: true, showType: true },
+            }),
+            client.getOwnedObjects({
+              owner: recipient,
+              filter: {
+                MatchAll: [{ StructType: `${packageId}::message::Message` }],
+              },
+              options: { showContent: true, showType: true },
+            }),
+          ]);
+
+          const allObjects = [...senderObjects.data, ...recipientObjects.data];
+          for (const obj of allObjects) {
+            if (
+              obj.data?.content?.fields?.sender === sender &&
+              obj.data?.content?.fields?.recipient === recipient &&
+              !seenIds.has(obj.data.objectId)
+            ) {
+              const fields = obj.data.content.fields;
+              const timestampMs = Long.fromValue(fields.timestamp).toNumber();
+              const timestamp = new Date(timestampMs);
+              const content = new TextDecoder().decode(
+                new Uint8Array(fields.content)
+              );
+              console.log(
+                "Event:",
+                event,
+                "Raw timestamp:",
+                fields.timestamp,
+                "Parsed:",
+                timestampMs,
+                "Formatted:",
+                timestamp.toLocaleString()
+              );
+              fetchedMessages.push({
+                id: obj.data.objectId,
+                sender: fields.sender,
+                recipient: fields.recipient,
+                content: content,
+                timestamp: timestamp,
+                timestampMs: timestampMs,
+              });
+              seenIds.add(obj.data.objectId);
+            }
           }
         }
       }
-      setMessages(fetchedMessages.sort((a, b) => a.timestamp - b.timestamp));
+      setMessages(
+        fetchedMessages.sort((a, b) => a.timestampMs - b.timestampMs)
+      );
     } catch (err) {
       setError("Failed to fetch messages: " + err.message);
-      console.error(err);
+      console.error("Fetch error details:", err);
     }
   };
 
@@ -133,6 +180,7 @@ function Chat() {
           query: { MoveEventType: `${packageId}::message::MessageCreated` },
           limit: 100,
           cursor,
+          order: "ascending",
         });
         allEvents = [...allEvents, ...response.data];
         cursor = response.nextCursor;
@@ -165,14 +213,19 @@ function Chat() {
 
     setSendStatus(true);
     try {
+      const cleanedMessage = message.trim().replace(/\s+/g, " ").slice(0, 100);
+      const content = new TextEncoder().encode(cleanedMessage);
+      const writer = new bcs.BcsWriter();
+      writer.writeVec(content, (w, item) => w.write8(item));
+      const bcsBytes = writer.toBytes();
+
       const tx = new TransactionBlock();
-      const content = new TextEncoder().encode(message);
       tx.moveCall({
         target: `${packageId}::message::send_message`,
         arguments: [
           tx.pure(currentAccount.address),
           tx.pure(recipientAddress),
-          tx.pure(content),
+          tx.pure(bcsBytes, "vector<u8>"),
         ],
       });
 
@@ -182,9 +235,9 @@ function Chat() {
         account: currentAccount,
       });
 
-      console.log("Send result:", result);
       setSendStatus(false);
-      fetchMessages(); // Refresh messages
+      setMessage("");
+      await fetchMessages();
     } catch (err) {
       setError("Failed to send: " + err.message);
       console.error(err);
@@ -202,18 +255,17 @@ function Chat() {
     <Container
       className="mt-5"
       style={{
-        maxWidth: "1000px",
-        minHeight: "100vh",
-        height: "100vh",
+        maxWidth: "1200px",
+        minHeight: "600px", // Fixed minimum height for one-size-fits-all
         display: "flex",
         flexDirection: "column",
-        overflow: "hidden",
         background: "linear-gradient(135deg, #1a0033, #330066)",
         border: "5px solid #ff00ff",
         borderRadius: "10px",
         boxShadow: "0 0 20px #00ffff",
         fontFamily: "Orbitron, sans-serif",
         color: "#00ffff",
+        padding: "10px",
       }}
     >
       {sendStatus && (
@@ -253,7 +305,7 @@ function Chat() {
           flex: "1",
           display: "flex",
           flexDirection: "row",
-          overflow: "hidden",
+          minHeight: "0",
         }}
       >
         <Col
@@ -264,6 +316,8 @@ function Chat() {
             position: "relative",
             padding: "0",
             borderRight: "3px dashed #ff00ff",
+            display: "flex",
+            flexDirection: "column",
           }}
         >
           <div
@@ -277,6 +331,7 @@ function Chat() {
               justifyContent: "center",
               alignItems: "center",
               borderBottom: "2px solid #ff00ff",
+              flexShrink: 0,
             }}
           >
             <h4
@@ -291,8 +346,9 @@ function Chat() {
           </div>
           <ListGroup
             style={{
-              maxHeight: "calc(100vh - 200px)",
+              flex: "1",
               overflowY: "auto",
+              maxHeight: "calc(600px - 170px)", // Adjusted for header and padding
               background: "rgba(0, 0, 0, 0.5)",
             }}
           >
@@ -334,8 +390,8 @@ function Chat() {
             position: "relative",
             display: "flex",
             flexDirection: "column",
-            height: "100%",
-            background: "linear-gradient(135deg, #330066, #1a0033)",
+            minHeight: "0",
+            flex: "1",
           }}
         >
           <div
@@ -345,7 +401,7 @@ function Chat() {
               height: "60px",
               backgroundColor: "#330066",
               borderBottom: "2px solid #ff00ff",
-              flexShrink: "0",
+              flexShrink: 0,
             }}
           >
             <h2
@@ -378,29 +434,38 @@ function Chat() {
           <div
             ref={chatContentRef}
             style={{
-              maxHeight: "calc(100vh - 200px)",
-              overflowY: "auto",
+              flexGrow: 1,
+              overflowY: "hidden", // No scrolling, fixed content
               padding: "15px",
               background: "rgba(0, 0, 0, 0.7)",
               border: "2px solid #ff00ff",
               borderRadius: "5px",
+              maxHeight: "calc(600px - 240px)", // Adjusted for header, input, and padding
             }}
           >
-            <ListGroup>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                minHeight: "100%",
+              }}
+            >
               {messages.length === 0 ? (
-                <ListGroup.Item
+                <div
                   style={{
                     backgroundColor: "#1a0033",
                     color: "#00ffff",
                     textAlign: "center",
                     border: "1px solid #ff00ff",
+                    padding: "10px",
+                    borderRadius: "8px",
                   }}
                 >
                   NO MESSAGES YET. START CHATTING!
-                </ListGroup.Item>
+                </div>
               ) : (
                 messages.map((msg) => (
-                  <ListGroup.Item
+                  <div
                     key={msg.id}
                     style={{
                       backgroundColor:
@@ -427,6 +492,8 @@ function Chat() {
                       boxShadow: "0 0 10px rgba(0, 255, 255, 0.5)",
                       fontSize: "14px",
                       textShadow: "0 0 3px #ff00ff",
+                      whiteSpace: "pre-wrap",
+                      wordBreak: "break-word",
                     }}
                   >
                     <strong>
@@ -446,20 +513,22 @@ function Chat() {
                             : "#ff00ff",
                       }}
                     >
-                      {new Date(msg.timestamp).toLocaleTimeString()}
+                      {msg.timestamp instanceof Date && !isNaN(msg.timestamp)
+                        ? msg.timestamp.toLocaleString()
+                        : "Unknown Time"}
                     </small>
-                  </ListGroup.Item>
+                  </div>
                 ))
               )}
-            </ListGroup>
+            </div>
           </div>
           <div
             className="mt-2 p-2"
             style={{
               backgroundColor: "#330066",
               borderTop: "2px solid #ff00ff",
-              flexShrink: "0",
-              height: "100px",
+              flexShrink: 0,
+              height: "100px", // Fixed height to keep input and button visible
               display: "flex",
               alignItems: "center",
             }}
@@ -512,7 +581,7 @@ function Chat() {
                 style={{
                   marginTop: "10px",
                   textAlign: "center",
-                  color: "#ff0000",
+                  color: "#ff00ff",
                   backgroundColor: "#330066",
                   border: "1px solid #ff00ff",
                 }}
@@ -526,7 +595,7 @@ function Chat() {
                 style={{
                   marginTop: "10px",
                   textAlign: "center",
-                  color: "#ff0000",
+                  color: "#ff00ff",
                   backgroundColor: "#330066",
                   border: "1px solid #ff00ff",
                 }}
