@@ -1,24 +1,24 @@
-const webpack = require("webpack");
+const path = require("path");
 
 module.exports = {
+  style: {
+    css: {
+      loaderOptions: { sourceMap: true },
+    },
+  },
   webpack: {
-    configure: (webpackConfig) => {
-      webpackConfig.resolve = {
-        ...webpackConfig.resolve,
+    alias: {
+      "process/browser": path.resolve(
+        __dirname,
+        "node_modules/process/browser.js"
+      ),
+    },
+    configure: {
+      resolve: {
         fallback: {
-          buffer: require.resolve("buffer/"),
-          stream: require.resolve("stream-browserify"),
+          process: require.resolve("process/browser.js"),
         },
-      };
-      webpackConfig.plugins = [
-        ...webpackConfig.plugins,
-        new webpack.ProvidePlugin({
-          Buffer: ["buffer", "Buffer"],
-          process: "process/browser",
-          stream: ["stream-browserify", "Stream"],
-        }),
-      ];
-      return webpackConfig;
+      },
     },
   },
 };

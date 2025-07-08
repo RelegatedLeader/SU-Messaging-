@@ -22,8 +22,9 @@ import Settings from "./Settings";
 
 function AppContent() {
   const [userName, setUserName] = useState("");
-  const { isConnected, currentAccount } = useWalletKit(); // Safe within WalletKitProvider
-  const client = new SuiClient({ url: "https://fullnode.devnet.sui.io:443" });
+  const [menuColor, setMenuColor] = useState("#ff00ff"); // Default to pink from Chat.js
+  const { isConnected, currentAccount } = useWalletKit();
+  const client = new SuiClient({ url: "https://fullnode.mainnet.sui.io:443" });
 
   useEffect(() => {
     const fetchUserName = async () => {
@@ -34,7 +35,7 @@ function AppContent() {
         });
         const userObject = objects.data.find((obj) =>
           obj.data.type.includes(
-            "0x62c1db5b7060a2d7207430b62c94dcfa50aaf1d5a09fb3a39f2869c86cd6f61b::su_messaging::User"
+            "0x3f455d572c2b923918a0623bef2e075b9870dc650c2f9e164aa2ea5693506d80::su_messaging::User"
           )
         );
         setUserName(
@@ -47,84 +48,167 @@ function AppContent() {
       }
     };
     fetchUserName();
+
+    // Dynamic color animation
+    let r = 255;
+    let g = 0;
+    let b = 255;
+    const interval = setInterval(() => {
+      r = (r + 1) % 256;
+      g = (g + 2) % 256;
+      b = (b + 3) % 256;
+      setMenuColor(`rgb(${r}, ${g}, ${b})`);
+    }, 100);
+    return () => clearInterval(interval);
   }, [isConnected, currentAccount]);
 
   return (
-    <Router>
-      <div>
-        <Navbar
-          bg="dark"
-          variant="dark"
-          expand="lg"
-          style={{ position: "sticky", top: 0, zIndex: 1000 }}
-        >
-          <Container>
-            <Navbar.Brand className="d-flex align-items-center gap-2">
-              <Link to="/">
+    <div>
+      <Navbar
+        bg="dark"
+        variant="dark"
+        expand="lg"
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 1000,
+          border: `5px solid ${menuColor}`,
+          borderRadius: "10px",
+          boxShadow: "0 0 20px rgba(0, 255, 255, 0.7)",
+          fontFamily: "Orbitron, sans-serif",
+          color: "#00ffff",
+          background: "linear-gradient(135deg, #1a0033, #330066)",
+        }}
+      >
+        <Container>
+          <Navbar.Brand className="d-flex align-items-center gap-2">
+            <Link to="/">
+              <img
+                src={logo}
+                alt="SU Logo"
+                style={{
+                  width: "40px",
+                  height: "40px",
+                  border: `2px solid ${menuColor}`,
+                }}
+              />
+            </Link>
+            <Link to="/" className="text-white text-decoration-none">
+              <span style={{ textShadow: "0 0 10px #00ffff" }}>
+                {userName || "SU"}
+              </span>
+            </Link>
+          </Navbar.Brand>
+          <Nav className="ms-auto d-flex align-items-center">
+            <Nav.Link
+              as={Link}
+              to="/settings"
+              className="text-white me-2"
+              style={{
+                textShadow: "0 0 5px #00ffff",
+                transition: "color 0.3s",
+                color: menuColor,
+              }}
+              onMouseEnter={(e) => (e.target.style.color = "#00ffff")}
+              onMouseLeave={(e) => (e.target.style.color = menuColor)}
+            >
+              Settings
+            </Nav.Link>
+            <ConnectButton
+              style={{
+                backgroundColor: menuColor,
+                borderColor: menuColor,
+                textShadow: "0 0 5px #00ffff",
+                fontSize: "16px",
+                padding: "5px 15px",
+                transition: "background-color 0.3s",
+              }}
+              onMouseEnter={(e) => (e.target.style.backgroundColor = "#00ffff")}
+              onMouseLeave={(e) => (e.target.style.backgroundColor = menuColor)}
+            />
+          </Nav>
+        </Container>
+      </Navbar>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <Container
+              className="mt-5 text-center"
+              style={{
+                background: "linear-gradient(135deg, #1a0033, #330066)",
+                border: `5px solid ${menuColor}`,
+                borderRadius: "10px",
+                boxShadow: "0 0 20px #00ffff",
+                color: "#00ffff",
+                fontFamily: "Orbitron, sans-serif",
+              }}
+            >
+              <h1
+                className="d-flex align-items-center justify-content-center gap-2"
+                style={{ textShadow: "0 0 15px #00ffff" }}
+              >
+                Welcome to {userName || "SU"}
                 <img
                   src={logo}
                   alt="SU Logo"
-                  style={{ width: "40px", height: "40px" }}
+                  style={{
+                    width: "50px",
+                    height: "50px",
+                    border: `2px solid ${menuColor}`,
+                  }}
                 />
-              </Link>
-              <Link to="/" className="text-white text-decoration-none">
-                <span>{userName || "SU"}</span>
-              </Link>
-            </Navbar.Brand>
-            <Nav className="ms-auto d-flex align-items-center">
-              <Nav.Link as={Link} to="/settings" className="text-white me-2">
-                Settings
-              </Nav.Link>
-              <ConnectButton />
-            </Nav>
-          </Container>
-        </Navbar>
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <Container className="mt-5 text-center">
-                <h1 className="d-flex align-items-center justify-content-center gap-2">
-                  Welcome to {userName || "SU"}
-                  <img
-                    src={logo}
-                    alt="SU Logo"
-                    style={{ width: "50px", height: "50px" }}
-                  />
-                </h1>
-                <p className="text-secondary">
-                  A decentralized messaging app powered by the SUI blockchain.
-                </p>
-                <div className="mt-4">
-                  <Button
-                    as={Link}
-                    to="/dashboard"
-                    variant="outline-primary"
-                    className="mx-2"
-                  >
-                    Go to Dashboard
-                  </Button>
-                </div>
-              </Container>
-            }
-          />
-          <Route
-            path="/dashboard"
-            element={isConnected ? <Dashboard /> : <Navigate to="/" replace />}
-          />
-          <Route path="/chat/:id" element={<Chat />} />
-          <Route path="/settings" element={<Settings />} />
-        </Routes>
-      </div>
-    </Router>
+              </h1>
+              <p style={{ textShadow: "0 0 5px #ff00ff" }}>
+                A decentralized messaging app powered by the SUI blockchain.
+              </p>
+              <div className="mt-4">
+                <Button
+                  as={Link}
+                  to="/dashboard"
+                  variant="outline-primary"
+                  className="mx-2"
+                  style={{
+                    borderColor: menuColor,
+                    color: menuColor,
+                    textShadow: "0 0 5px #00ffff",
+                    padding: "10px 20px",
+                    transition: "background-color 0.3s",
+                  }}
+                  onMouseEnter={(e) =>
+                    (e.target.style.backgroundColor = "#00ffff")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.target.style.backgroundColor = "transparent")
+                  }
+                >
+                  Go to Dashboard
+                </Button>
+              </div>
+            </Container>
+          }
+        />
+        <Route
+          path="/dashboard"
+          element={isConnected ? <Dashboard /> : <Navigate to="/" replace />}
+        />
+        <Route path="/chat/:id" element={<Chat />} />
+        <Route
+          path="/settings"
+          element={<Settings setMenuColor={setMenuColor} />}
+        />
+      </Routes>
+    </div>
   );
 }
 
 function App() {
   return (
-    <WalletKitProvider>
-      <AppContent />
-    </WalletKitProvider>
+    <Router>
+      <WalletKitProvider>
+        <AppContent />
+      </WalletKitProvider>
+    </Router>
   );
 }
 

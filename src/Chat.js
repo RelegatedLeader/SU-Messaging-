@@ -13,6 +13,7 @@ import { TransactionBlock } from "@mysten/sui.js/transactions";
 import { useWalletKit } from "@mysten/wallet-kit";
 import { SuiClient } from "@mysten/sui.js/client";
 import * as bcs from "@mysten/bcs";
+import Long from "long";
 
 function Chat() {
   const { id: recipientAddress } = useParams();
@@ -47,22 +48,31 @@ function Chat() {
     fetchNames();
   }, [isConnected, currentAccount, recipientAddress]);
 
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
   const fetchUserName = async (address) => {
     if (!isConnected || !currentAccount) return address.slice(0, 6) + "...";
-    const objects = await client.getOwnedObjects({
-      owner: address,
-      options: { showType: true, showContent: true },
-    });
-    const userObject = objects.data.find((obj) =>
-      obj.data.type.includes(
-        "0x3f455d572c2b923918a0623bef2e075b9870dc650c2f9e164aa2ea5693506d80::su_messaging::User"
-      )
-    );
-    return userObject?.data.content.fields.display_name
-      ? new TextDecoder().decode(
-          new Uint8Array(userObject.data.content.fields.display_name)
+    try {
+      const objects = await client.getOwnedObjects({
+        owner: address,
+        options: { showType: true, showContent: true },
+      });
+      const userObject = objects.data.find((obj) =>
+        obj.data.type.includes(
+          "0x3f455d572c2b923918a0623bef2e075b9870dc650c2f9e164aa2ea5693506d80::su_messaging::User"
         )
-      : address.slice(0, 6) + "...";
+      );
+      return userObject?.data.content.fields.display_name
+        ? new TextDecoder().decode(
+            new Uint8Array(userObject.data.content.fields.display_name)
+          )
+        : address.slice(0, 6) + "...";
+    } catch (err) {
+      console.error("Failed to fetch username:", err);
+      return address.slice(0, 6) + "...";
+    }
   };
 
   const fetchMessages = async () => {
@@ -78,6 +88,7 @@ function Chat() {
           query: { MoveEventType: `${packageId}::message::MessageCreated` },
           limit: 100,
           cursor,
+          order: "ascending",
         });
         console.log("Query response:", response.data);
         allEvents = [...allEvents, ...response.data];
@@ -85,25 +96,11 @@ function Chat() {
         hasNextPage = response.hasNextPage;
       } while (hasNextPage);
 
-      const uniqueEvents = Array.from(
-        new Map(
-          allEvents.map((event) => {
-            const { sender, recipient } = event.parsedJson || {};
-            return [JSON.stringify({ sender, recipient }), event];
-          })
-        ).values()
-      );
-
       const fetchedMessages = [];
-      for (const event of uniqueEvents) {
-        console.log("Event data:", event);
-        const parsedJson = event.parsedJson || {};
-        const { sender, recipient } = parsedJson;
-        console.log("Parsed JSON:", { sender, recipient });
-        if (!sender || !recipient) {
-          console.log("Skipping event due to missing fields:", event);
-          continue;
-        }
+      const seenIds = new Set();
+      for (const event of allEvents) {
+        const { sender, recipient } = event.parsedJson || {};
+        if (!sender || !recipient) continue;
         if (
           (sender === senderAddress && recipient === recipientAddress) ||
           (sender === recipientAddress && recipient === senderAddress)
@@ -124,56 +121,46 @@ function Chat() {
               options: { showContent: true, showType: true },
             }),
           ]);
-          console.log(
-            "Sender owned objects IDs:",
-            senderObjects.data.map((obj) => obj.data?.objectId)
-          );
-          console.log(
-            "Recipient owned objects IDs:",
-            recipientObjects.data.map((obj) => obj.data?.objectId)
-          );
+
           const allObjects = [...senderObjects.data, ...recipientObjects.data];
           for (const obj of allObjects) {
             if (
               obj.data?.content?.fields?.sender === sender &&
-              obj.data?.content?.fields?.recipient === recipient
+              obj.data?.content?.fields?.recipient === recipient &&
+              !seenIds.has(obj.data.objectId)
             ) {
               const fields = obj.data.content.fields;
-              // Log raw timestamp to debug
-              console.log("Raw timestamp field:", fields.timestamp);
-              // Use Number with fallback to current time, adjusted for large u64 values
-              const timestampValue = fields.timestamp || 0;
-              const timestamp = new Date(
-                Number.isSafeInteger(Number(timestampValue))
-                  ? Number(timestampValue)
-                  : Date.now()
-              );
-              console.log(
-                "Object ID:",
-                obj.data.objectId,
-                "Parsed Timestamp:",
-                timestamp
-              );
+              const timestampMs = Long.fromValue(fields.timestamp).toNumber();
+              const timestamp = new Date(timestampMs);
               const content = new TextDecoder().decode(
                 new Uint8Array(fields.content)
               );
-              if (
-                !fetchedMessages.some((msg) => msg.id === obj.data.objectId)
-              ) {
-                fetchedMessages.push({
-                  id: obj.data.objectId,
-                  sender: fields.sender,
-                  recipient: fields.recipient,
-                  content: content,
-                  timestamp: timestamp,
-                });
-              }
+              console.log(
+                "Event:",
+                event,
+                "Raw timestamp:",
+                fields.timestamp,
+                "Parsed:",
+                timestampMs,
+                "Formatted:",
+                timestamp.toLocaleString()
+              );
+              fetchedMessages.push({
+                id: obj.data.objectId,
+                sender: fields.sender,
+                recipient: fields.recipient,
+                content: content,
+                timestamp: timestamp,
+                timestampMs: timestampMs,
+              });
+              seenIds.add(obj.data.objectId);
             }
           }
         }
       }
-      // Always update state to ensure new messages are displayed
-      setMessages(fetchedMessages.sort((a, b) => a.timestamp - b.timestamp));
+      setMessages(
+        fetchedMessages.sort((a, b) => a.timestampMs - b.timestampMs)
+      );
     } catch (err) {
       setError("Failed to fetch messages: " + err.message);
       console.error("Fetch error details:", err);
@@ -193,6 +180,7 @@ function Chat() {
           query: { MoveEventType: `${packageId}::message::MessageCreated` },
           limit: 100,
           cursor,
+          order: "ascending",
         });
         allEvents = [...allEvents, ...response.data];
         cursor = response.nextCursor;
@@ -225,10 +213,8 @@ function Chat() {
 
     setSendStatus(true);
     try {
-      console.log("Raw message:", message);
       const cleanedMessage = message.trim().replace(/\s+/g, " ").slice(0, 100);
       const content = new TextEncoder().encode(cleanedMessage);
-      console.log("Content bytes:", Array.from(content));
       const writer = new bcs.BcsWriter();
       writer.writeVec(content, (w, item) => w.write8(item));
       const bcsBytes = writer.toBytes();
@@ -249,10 +235,9 @@ function Chat() {
         account: currentAccount,
       });
 
-      console.log("Send result:", result);
       setSendStatus(false);
-      setMessage(""); // Clear input field after sending
-      fetchMessages(); // Refresh messages immediately
+      setMessage("");
+      await fetchMessages();
     } catch (err) {
       setError("Failed to send: " + err.message);
       console.error(err);
@@ -455,7 +440,7 @@ function Chat() {
               maxHeight: "calc(100vh - 200px)",
             }}
           >
-            <div style={{ display: "flex", flexDirection: "column-reverse" }}>
+            <div style={{ display: "flex", flexDirection: "column" }}>
               {messages.length === 0 ? (
                 <div
                   style={{
@@ -472,7 +457,7 @@ function Chat() {
               ) : (
                 messages.map((msg) => (
                   <div
-                    key={msg.id} // Use objectId as unique key
+                    key={msg.id}
                     style={{
                       backgroundColor:
                         msg.sender === currentAccount?.address
@@ -520,7 +505,7 @@ function Chat() {
                       }}
                     >
                       {msg.timestamp instanceof Date && !isNaN(msg.timestamp)
-                        ? msg.timestamp.toLocaleTimeString()
+                        ? msg.timestamp.toLocaleString()
                         : "Unknown Time"}
                     </small>
                   </div>

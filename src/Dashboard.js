@@ -10,20 +10,16 @@ function Dashboard() {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
   const { isConnected, currentAccount } = useWalletKit();
+  const client = new SuiClient({ url: "https://fullnode.mainnet.sui.io:443" });
 
-  // Initialize SUI client for Devnet
-  const client = new SuiClient({ url: "https://fullnode.devnet.sui.io:443" });
-
-  // Memoize fetchRecentChats to prevent unnecessary re-renders
   const fetchRecentChats = useCallback(async () => {
     if (!isConnected || !currentAccount) return;
 
     try {
       const senderAddress = currentAccount.address;
       const packageId =
-        "0x3f455d572c2b923918a0623bef2e075b9870dc650c2f9e164aa2ea5693506d80";
+        "0x3c7d131d38c117cbc75e3a8349ea3c841776ad6c6168e9590ba1fc4478018799";
 
-      // Query events with pagination
       let allEvents = [];
       let cursor = null;
       let hasNextPage = true;
@@ -31,10 +27,11 @@ function Dashboard() {
       do {
         const response = await client.queryEvents({
           query: {
-            MoveEventType: `${packageId}::su_messaging::MessageCreated`,
+            MoveEventType: `${packageId}::message::MessageCreated`,
           },
           limit: 50,
           cursor,
+          order: "ascending",
         });
         console.log("Events response for recent chats:", response.data);
         allEvents = [...allEvents, ...response.data];
@@ -44,10 +41,10 @@ function Dashboard() {
 
       console.log("Fetched events for recent chats:", allEvents);
 
-      // Extract unique recipients and fetch their display names with last message
       const recipients = new Set();
       for (const event of allEvents) {
-        const { sender, recipient } = event.parsedJson;
+        const { sender, recipient } = event.parsedJson || {};
+        if (!sender || !recipient) continue;
         console.log(
           `Event in recent chats: sender=${sender}, recipient=${recipient}`
         );
@@ -66,7 +63,9 @@ function Dashboard() {
             options: { showType: true, showContent: true },
           });
           const userObject = objects.data.find((obj) =>
-            obj.data.type.includes(`${packageId}::su_messaging::User`)
+            obj.data.type.includes(
+              "0x3f455d572c2b923918a0623bef2e075b9870dc650c2f9e164aa2ea5693506d80::su_messaging::User"
+            )
           );
           const displayName = userObject?.data.content.fields.display_name
             ? new TextDecoder().decode(
@@ -74,28 +73,29 @@ function Dashboard() {
               )
             : address.slice(0, 6) + "...";
 
-          // Get the last message (sent or received) with debugging
           const relevantEvents = allEvents.filter(
             (event) =>
               event.parsedJson.sender === address ||
               event.parsedJson.recipient === address
           );
           const lastEvent = relevantEvents.sort(
-            (a, b) => b.timestamp - a.timestamp
+            (a, b) =>
+              Number(b.parsedJson.timestamp) - Number(a.parsedJson.timestamp)
           )[0];
           const lastMessage = lastEvent
             ? new TextDecoder().decode(
-                new Uint8Array(lastEvent.parsedJson.encrypted_content)
+                new Uint8Array(lastEvent.parsedJson.content)
               )
             : "No messages yet";
-          console.log(`Last message for ${address}: ${lastMessage}`); // Debug log
+          console.log(
+            `Last message for ${address}: ${lastMessage}, Timestamp: ${lastEvent?.parsedJson.timestamp}`
+          );
 
-          // Simulate new messages only from the other user (unread)
           const hasNewMessages = allEvents.some(
             (event) =>
-              event.parsedJson.sender === address && // From other user
-              event.parsedJson.recipient === senderAddress && // To current user
-              !event.parsedJson.is_read // Unread
+              event.parsedJson.sender === address &&
+              event.parsedJson.recipient === senderAddress &&
+              !event.parsedJson.is_read
           );
 
           return { address, displayName, lastMessage, hasNewMessages };
@@ -107,18 +107,16 @@ function Dashboard() {
       setError("Failed to fetch recent chats: " + err.message);
       console.error(err);
     }
-  }, [isConnected, currentAccount]); // Dependencies for useCallback
+  }, [isConnected, currentAccount]);
 
-  // Fetch recent chats when the component mounts or when dependencies change
   useEffect(() => {
     fetchRecentChats();
-  }, [fetchRecentChats]); // Only re-run if fetchRecentChats changes
+  }, [fetchRecentChats]);
 
   const handleStartChat = (e) => {
     e.preventDefault();
     setError(null);
 
-    // Basic validation for SUI address (64 characters, starts with 0x)
     if (!recipientAddress.match(/^0x[a-fA-F0-9]{64}$/)) {
       setError(
         "Please enter a valid SUI address (64 characters starting with 0x)."
@@ -126,23 +124,50 @@ function Dashboard() {
       return;
     }
 
-    // Navigate to the chat page with the recipient address, removing new message indicator
     navigate(`/chat/${recipientAddress}`, {
       state: { clearNewMessages: true },
     });
   };
 
   return (
-    <Container className="mt-5">
-      <h2 className="text-center">Dashboard</h2>
+    <Container
+      className="mt-5"
+      style={{
+        maxWidth: "1200px",
+        minHeight: "100vh",
+        height: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+        background: "linear-gradient(135deg, #1a0033, #330066)",
+        border: "5px solid #ff00ff",
+        borderRadius: "10px",
+        boxShadow: "0 0 20px #00ffff",
+        fontFamily: "Orbitron, sans-serif",
+        color: "#00ffff",
+      }}
+    >
+      <h2
+        className="text-center"
+        style={{ textShadow: "0 0 15px #00ffff", marginBottom: "20px" }}
+      >
+        Dashboard
+      </h2>
       <div className="mt-4">
         <Form
           onSubmit={handleStartChat}
           className="mx-auto"
-          style={{ maxWidth: "600px" }}
+          style={{
+            maxWidth: "600px",
+            border: "2px solid #ff00ff",
+            padding: "15px",
+            borderRadius: "8px",
+          }}
         >
           <Form.Group controlId="recipientAddress">
-            <Form.Label>Start a Chat</Form.Label>
+            <Form.Label style={{ textShadow: "0 0 5px #ff00ff" }}>
+              Start a Chat
+            </Form.Label>
             <Form.Control
               type="text"
               placeholder="Enter recipient's SUI address (e.g., 0x...)"
@@ -150,9 +175,13 @@ function Dashboard() {
               onChange={(e) => setRecipientAddress(e.target.value)}
               required
               style={{
-                backgroundColor: "#ffffff", // White background
-                color: "#000000", // Black text for visibility
-                borderColor: "var(--primary-blue)",
+                backgroundColor: "#1a0033",
+                color: "#00ffff",
+                border: "1px dashed #ff00ff",
+                borderRadius: "5px",
+                padding: "10px",
+                fontSize: "14px",
+                textShadow: "0 0 3px #ff00ff",
               }}
             />
           </Form.Group>
@@ -161,36 +190,66 @@ function Dashboard() {
             type="submit"
             className="mt-3"
             style={{
-              backgroundColor: "var(--primary-blue)",
-              borderColor: "var(--primary-blue)",
+              backgroundColor: "#ff00ff",
+              borderColor: "#ff00ff",
+              textShadow: "0 0 5px #00ffff",
+              padding: "10px 20px",
+              fontSize: "16px",
+              transition: "background-color 0.3s",
             }}
+            onMouseEnter={(e) => (e.target.style.backgroundColor = "#00ffff")}
+            onMouseLeave={(e) => (e.target.style.backgroundColor = "#ff00ff")}
           >
             Start Chat
           </Button>
         </Form>
         {error && (
-          <Alert variant="danger" className="mt-3">
+          <Alert
+            variant="danger"
+            className="mt-3"
+            style={{
+              backgroundColor: "#330066",
+              border: "1px solid #ff00ff",
+              color: "#ff0000",
+            }}
+          >
             {error}
           </Alert>
         )}
       </div>
       <div className="mt-4">
-        <h4>Recent Chats</h4>
+        <h4 style={{ textShadow: "0 0 10px #00ffff" }}>Recent Chats</h4>
         {recentChats.length === 0 ? (
-          <p>No recent chats yet.</p>
+          <p style={{ color: "#00ffff" }}>No recent chats yet.</p>
         ) : (
-          <ListGroup>
+          <ListGroup
+            style={{
+              maxHeight: "calc(100vh - 300px)",
+              overflowY: "auto",
+              background: "rgba(0, 0, 0, 0.5)",
+              border: "2px solid #ff00ff",
+              borderRadius: "5px",
+            }}
+          >
             {recentChats.map((chat, index) => (
               <ListGroup.Item
                 key={index}
                 style={{
-                  backgroundColor: "var(--accent-dark)",
-                  color: "var(--text-primary)",
+                  backgroundColor: "#1a0033",
+                  color: "#00ffff",
                   position: "relative",
                   padding: "10px",
                   display: "flex",
                   flexDirection: "column",
+                  borderBottom: "1px dashed #ff00ff",
+                  transition: "background-color 0.3s",
                 }}
+                onMouseEnter={(e) =>
+                  (e.target.style.backgroundColor = "#00ccff")
+                }
+                onMouseLeave={(e) =>
+                  (e.target.style.backgroundColor = "#1a0033")
+                }
               >
                 <Link
                   to={`/chat/${chat.address}`}
@@ -206,28 +265,29 @@ function Dashboard() {
                     }
                   }}
                   style={{
-                    color: "#ffffff", // White text
+                    color: "#00ffff",
                     textDecoration: "none",
-                    fontWeight: "bold", // Bold text
+                    fontWeight: "bold",
                     marginBottom: "5px",
+                    textShadow: "0 0 5px #ff00ff",
                   }}
                 >
                   {chat.displayName}
                 </Link>
                 <div
                   style={{
-                    color: "#ffffff", // White text
+                    color: "#00ffff",
                     fontWeight: "normal",
                     padding: "5px",
-                    backgroundColor: "#333", // Dark background for contrast
+                    backgroundColor: "#330066",
                     borderRadius: "5px",
                     maxWidth: "80%",
                     wordWrap: "break-word",
-                    border: "1px solid #89CFF0", // Add border for visibility
+                    border: "1px dashed #ff00ff",
+                    boxShadow: "0 0 10px rgba(0, 255, 255, 0.5)",
                   }}
                 >
-                  {chat.lastMessage || "No message content available"}{" "}
-                  {/* Fallback text */}
+                  {chat.lastMessage || "No message content available"}
                 </div>
                 {chat.hasNewMessages && (
                   <span
@@ -237,8 +297,9 @@ function Dashboard() {
                       right: "5px",
                       width: "10px",
                       height: "10px",
-                      backgroundColor: "#89CFF0", // Baby blue
+                      backgroundColor: "#ff00ff",
                       borderRadius: "50%",
+                      boxShadow: "0 0 5px #00ffff",
                     }}
                   />
                 )}
