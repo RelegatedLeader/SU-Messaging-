@@ -256,17 +256,16 @@ function Chat() {
       className="mt-5"
       style={{
         maxWidth: "1200px",
-        minHeight: "100vh",
-        height: "100vh",
+        minHeight: "600px", // Fixed minimum height for one-size-fits-all
         display: "flex",
         flexDirection: "column",
-        overflow: "hidden",
         background: "linear-gradient(135deg, #1a0033, #330066)",
         border: "5px solid #ff00ff",
         borderRadius: "10px",
         boxShadow: "0 0 20px #00ffff",
         fontFamily: "Orbitron, sans-serif",
         color: "#00ffff",
+        padding: "10px",
       }}
     >
       {sendStatus && (
@@ -306,7 +305,7 @@ function Chat() {
           flex: "1",
           display: "flex",
           flexDirection: "row",
-          overflow: "hidden",
+          minHeight: "0",
         }}
       >
         <Col
@@ -317,6 +316,8 @@ function Chat() {
             position: "relative",
             padding: "0",
             borderRight: "3px dashed #ff00ff",
+            display: "flex",
+            flexDirection: "column",
           }}
         >
           <div
@@ -330,6 +331,7 @@ function Chat() {
               justifyContent: "center",
               alignItems: "center",
               borderBottom: "2px solid #ff00ff",
+              flexShrink: 0,
             }}
           >
             <h4
@@ -344,8 +346,9 @@ function Chat() {
           </div>
           <ListGroup
             style={{
-              maxHeight: "100%",
+              flex: "1",
               overflowY: "auto",
+              maxHeight: "calc(600px - 170px)", // Adjusted for header and padding
               background: "rgba(0, 0, 0, 0.5)",
             }}
           >
@@ -387,8 +390,8 @@ function Chat() {
             position: "relative",
             display: "flex",
             flexDirection: "column",
-            height: "100%",
-            background: "linear-gradient(135deg, #330066, #1a0033)",
+            minHeight: "0",
+            flex: "1",
           }}
         >
           <div
@@ -398,7 +401,7 @@ function Chat() {
               height: "60px",
               backgroundColor: "#330066",
               borderBottom: "2px solid #ff00ff",
-              flexShrink: "0",
+              flexShrink: 0,
             }}
           >
             <h2
@@ -432,15 +435,21 @@ function Chat() {
             ref={chatContentRef}
             style={{
               flexGrow: 1,
-              overflowY: "auto",
+              overflowY: "hidden", // No scrolling, fixed content
               padding: "15px",
               background: "rgba(0, 0, 0, 0.7)",
               border: "2px solid #ff00ff",
               borderRadius: "5px",
-              maxHeight: "calc(100vh - 200px)",
+              maxHeight: "calc(600px - 240px)", // Adjusted for header, input, and padding
             }}
           >
-            <div style={{ display: "flex", flexDirection: "column" }}>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                minHeight: "100%",
+              }}
+            >
               {messages.length === 0 ? (
                 <div
                   style={{
@@ -518,8 +527,8 @@ function Chat() {
             style={{
               backgroundColor: "#330066",
               borderTop: "2px solid #ff00ff",
-              flexShrink: "0",
-              height: "100px",
+              flexShrink: 0,
+              height: "100px", // Fixed height to keep input and button visible
               display: "flex",
               alignItems: "center",
             }}
@@ -572,7 +581,7 @@ function Chat() {
                 style={{
                   marginTop: "10px",
                   textAlign: "center",
-                  color: "#ff0000",
+                  color: "#ff00ff",
                   backgroundColor: "#330066",
                   border: "1px solid #ff00ff",
                 }}
@@ -586,7 +595,7 @@ function Chat() {
                 style={{
                   marginTop: "10px",
                   textAlign: "center",
-                  color: "#ff0000",
+                  color: "#ff00ff",
                   backgroundColor: "#330066",
                   border: "1px solid #ff00ff",
                 }}

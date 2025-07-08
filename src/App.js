@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
-import { Container, Navbar, Nav, Button } from "react-bootstrap";
+import { Container, Navbar, Nav, Button, Modal } from "react-bootstrap";
 import {
   WalletKitProvider,
   useWalletKit,
@@ -23,6 +23,7 @@ import Settings from "./Settings";
 function AppContent() {
   const [userName, setUserName] = useState("");
   const [menuColor, setMenuColor] = useState("#ff00ff"); // Default to pink from Chat.js
+  const [showWalletModal, setShowWalletModal] = useState(false);
   const { isConnected, currentAccount } = useWalletKit();
   const client = new SuiClient({ url: "https://fullnode.mainnet.sui.io:443" });
 
@@ -62,6 +63,13 @@ function AppContent() {
     return () => clearInterval(interval);
   }, [isConnected, currentAccount]);
 
+  const handleDashboardClick = (e) => {
+    if (!isConnected) {
+      e.preventDefault();
+      setShowWalletModal(true);
+    }
+  };
+
   return (
     <div>
       <Navbar
@@ -73,28 +81,32 @@ function AppContent() {
           top: 0,
           zIndex: 1000,
           border: `5px solid ${menuColor}`,
-          borderRadius: "10px",
-          boxShadow: "0 0 20px rgba(0, 255, 255, 0.7)",
+          borderRadius: "15px",
+          boxShadow: "0 0 25px rgba(0, 255, 255, 0.8)",
           fontFamily: "Orbitron, sans-serif",
           color: "#00ffff",
-          background: "linear-gradient(135deg, #1a0033, #330066)",
+          background: "linear-gradient(135deg, #1a0033, #440088)",
+          padding: "10px 20px",
         }}
       >
         <Container>
-          <Navbar.Brand className="d-flex align-items-center gap-2">
+          <Navbar.Brand className="d-flex align-items-center gap-3">
             <Link to="/">
               <img
                 src={logo}
                 alt="SU Logo"
                 style={{
-                  width: "40px",
-                  height: "40px",
-                  border: `2px solid ${menuColor}`,
+                  width: "50px",
+                  height: "50px",
+                  border: `3px solid ${menuColor}`,
+                  borderRadius: "10px",
                 }}
               />
             </Link>
             <Link to="/" className="text-white text-decoration-none">
-              <span style={{ textShadow: "0 0 10px #00ffff" }}>
+              <span
+                style={{ textShadow: "0 0 15px #00ffff", fontSize: "1.2em" }}
+              >
                 {userName || "SU"}
               </span>
             </Link>
@@ -103,11 +115,12 @@ function AppContent() {
             <Nav.Link
               as={Link}
               to="/settings"
-              className="text-white me-2"
+              className="text-white me-3"
               style={{
-                textShadow: "0 0 5px #00ffff",
-                transition: "color 0.3s",
+                textShadow: "0 0 8px #00ffff",
+                transition: "color 0.4s",
                 color: menuColor,
+                fontSize: "1.1em",
               }}
               onMouseEnter={(e) => (e.target.style.color = "#00ffff")}
               onMouseLeave={(e) => (e.target.style.color = menuColor)}
@@ -118,10 +131,11 @@ function AppContent() {
               style={{
                 backgroundColor: menuColor,
                 borderColor: menuColor,
-                textShadow: "0 0 5px #00ffff",
-                fontSize: "16px",
-                padding: "5px 15px",
-                transition: "background-color 0.3s",
+                textShadow: "0 0 8px #00ffff",
+                fontSize: "1.1em",
+                padding: "8px 20px",
+                borderRadius: "10px",
+                transition: "background-color 0.4s",
               }}
               onMouseEnter={(e) => (e.target.style.backgroundColor = "#00ffff")}
               onMouseLeave={(e) => (e.target.style.backgroundColor = menuColor)}
@@ -136,33 +150,35 @@ function AppContent() {
             <Container
               className="mt-5 text-center"
               style={{
-                background: "linear-gradient(135deg, #1a0033, #330066)",
+                background: "linear-gradient(135deg, #1a0033, #440088)",
                 border: `5px solid ${menuColor}`,
-                borderRadius: "10px",
-                boxShadow: "0 0 20px #00ffff",
+                borderRadius: "15px",
+                boxShadow: "0 0 25px #00ffff",
                 color: "#00ffff",
                 fontFamily: "Orbitron, sans-serif",
+                padding: "30px",
               }}
             >
               <h1
-                className="d-flex align-items-center justify-content-center gap-2"
-                style={{ textShadow: "0 0 15px #00ffff" }}
+                className="d-flex align-items-center justify-content-center gap-3"
+                style={{ textShadow: "0 0 20px #00ffff", fontSize: "2.5em" }}
               >
                 Welcome to {userName || "SU"}
                 <img
                   src={logo}
                   alt="SU Logo"
                   style={{
-                    width: "50px",
-                    height: "50px",
-                    border: `2px solid ${menuColor}`,
+                    width: "60px",
+                    height: "60px",
+                    border: `3px solid ${menuColor}`,
+                    borderRadius: "10px",
                   }}
                 />
               </h1>
-              <p style={{ textShadow: "0 0 5px #ff00ff" }}>
+              <p style={{ textShadow: "0 0 8px #ff00ff", fontSize: "1.2em" }}>
                 A decentralized messaging app powered by the SUI blockchain.
               </p>
-              <div className="mt-4">
+              <div className="mt-5">
                 <Button
                   as={Link}
                   to="/dashboard"
@@ -171,10 +187,13 @@ function AppContent() {
                   style={{
                     borderColor: menuColor,
                     color: menuColor,
-                    textShadow: "0 0 5px #00ffff",
-                    padding: "10px 20px",
-                    transition: "background-color 0.3s",
+                    textShadow: "0 0 8px #00ffff",
+                    padding: "12px 25px",
+                    fontSize: "1.2em",
+                    borderRadius: "10px",
+                    transition: "background-color 0.4s",
                   }}
+                  onClick={handleDashboardClick}
                   onMouseEnter={(e) =>
                     (e.target.style.backgroundColor = "#00ffff")
                   }
@@ -198,6 +217,59 @@ function AppContent() {
           element={<Settings setMenuColor={setMenuColor} />}
         />
       </Routes>
+
+      <Modal
+        show={showWalletModal}
+        onHide={() => setShowWalletModal(false)}
+        centered
+      >
+        <Modal.Header
+          style={{
+            background: "linear-gradient(135deg, #1a0033, #440088)",
+            borderBottom: `2px solid ${menuColor}`,
+            color: "#00ffff",
+            fontFamily: "Orbitron, sans-serif",
+          }}
+        >
+          <Modal.Title style={{ textShadow: "0 0 15px #00ffff" }}>
+            Wallet Required
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body
+          style={{
+            background: "#1a0033",
+            color: "#00ffff",
+            textShadow: "0 0 5px #ff00ff",
+            fontSize: "1.1em",
+          }}
+        >
+          Please connect your wallet to access the Dashboard and enjoy the full
+          SU experience!
+        </Modal.Body>
+        <Modal.Footer
+          style={{
+            background: "linear-gradient(135deg, #1a0033, #440088)",
+            borderTop: `2px solid ${menuColor}`,
+          }}
+        >
+          <Button
+            variant="primary"
+            onClick={() => setShowWalletModal(false)}
+            style={{
+              backgroundColor: menuColor,
+              borderColor: menuColor,
+              textShadow: "0 0 8px #00ffff",
+              padding: "8px 20px",
+              borderRadius: "10px",
+              transition: "background-color 0.4s",
+            }}
+            onMouseEnter={(e) => (e.target.style.backgroundColor = "#00ffff")}
+            onMouseLeave={(e) => (e.target.style.backgroundColor = menuColor)}
+          >
+            Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 }

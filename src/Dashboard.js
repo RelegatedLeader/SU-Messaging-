@@ -1,5 +1,13 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Container, Form, Button, Alert, ListGroup } from "react-bootstrap";
+import {
+  Container,
+  Form,
+  Button,
+  Alert,
+  ListGroup,
+  InputGroup,
+  Badge,
+} from "react-bootstrap";
 import { useNavigate, Link } from "react-router-dom";
 import { useWalletKit } from "@mysten/wallet-kit";
 import { SuiClient } from "@mysten/sui.js/client";
@@ -8,6 +16,8 @@ function Dashboard() {
   const [recipientAddress, setRecipientAddress] = useState("");
   const [recentChats, setRecentChats] = useState([]);
   const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [menuColor, setMenuColor] = useState("#ff00ff"); // Sync with App.js default
   const navigate = useNavigate();
   const { isConnected, currentAccount } = useWalletKit();
   const client = new SuiClient({ url: "https://fullnode.mainnet.sui.io:443" });
@@ -97,8 +107,17 @@ function Dashboard() {
               event.parsedJson.recipient === senderAddress &&
               !event.parsedJson.is_read
           );
+          const isActive = lastEvent
+            ? Date.now() - Number(lastEvent.parsedJson.timestamp) < 86400000
+            : false; // Active if within 24 hours
 
-          return { address, displayName, lastMessage, hasNewMessages };
+          return {
+            address,
+            displayName,
+            lastMessage,
+            hasNewMessages,
+            isActive,
+          };
         })
       );
 
@@ -111,6 +130,18 @@ function Dashboard() {
 
   useEffect(() => {
     fetchRecentChats();
+
+    // Dynamic color animation synced with App.js
+    let r = 255;
+    let g = 0;
+    let b = 255;
+    const interval = setInterval(() => {
+      r = (r + 1) % 256;
+      g = (g + 2) % 256;
+      b = (b + 3) % 256;
+      setMenuColor(`rgb(${r}, ${g}, ${b})`);
+    }, 100);
+    return () => clearInterval(interval);
   }, [fetchRecentChats]);
 
   const handleStartChat = (e) => {
@@ -129,43 +160,102 @@ function Dashboard() {
     });
   };
 
+  const filteredChats = recentChats.filter(
+    (chat) =>
+      chat.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      chat.address.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const markAllRead = () => {
+    setRecentChats((prevChats) =>
+      prevChats.map((chat) => ({ ...chat, hasNewMessages: false }))
+    );
+  };
+
+  const refreshChats = () => {
+    fetchRecentChats();
+  };
+
   return (
     <Container
-      className="mt-5"
+      className="mt-3"
       style={{
         maxWidth: "1200px",
-        minHeight: "100vh",
-        height: "100vh",
+        maxHeight: "90vh",
+        height: "auto",
         display: "flex",
         flexDirection: "column",
-        overflow: "hidden",
-        background: "linear-gradient(135deg, #1a0033, #330066)",
-        border: "5px solid #ff00ff",
-        borderRadius: "10px",
-        boxShadow: "0 0 20px #00ffff",
+        gap: "10px",
+        background: "linear-gradient(135deg, #1a0033, #440088)",
+        border: `5px solid ${menuColor}`,
+        borderRadius: "15px",
+        boxShadow: "0 0 25px rgba(0, 255, 255, 0.8)",
         fontFamily: "Orbitron, sans-serif",
         color: "#00ffff",
+        padding: "15px",
+        overflow: "auto",
       }}
     >
       <h2
         className="text-center"
-        style={{ textShadow: "0 0 15px #00ffff", marginBottom: "20px" }}
+        style={{
+          textShadow: "0 0 18px #00ffff",
+          marginBottom: "10px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "10px",
+        }}
       >
         Dashboard
+        <Badge
+          bg="danger"
+          style={{
+            backgroundColor: menuColor,
+            color: "#00ffff",
+            textShadow: "0 0 5px #00ffff",
+            padding: "5px 10px",
+            borderRadius: "10px",
+            transition: "background-color 0.4s",
+          }}
+        >
+          {recentChats.filter((chat) => chat.hasNewMessages).length}
+        </Badge>
+        <Badge
+          bg="secondary"
+          style={{
+            backgroundColor: "#330066",
+            color: "#00ffff",
+            textShadow: "0 0 5px #00ffff",
+            padding: "5px 10px",
+            borderRadius: "10px",
+          }}
+        >
+          {recentChats.length} Chats
+        </Badge>
       </h2>
-      <div className="mt-4">
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "15px",
+          justifyContent: "space-between",
+        }}
+      >
         <Form
           onSubmit={handleStartChat}
-          className="mx-auto"
           style={{
-            maxWidth: "600px",
-            border: "2px solid #ff00ff",
-            padding: "15px",
+            flex: "1 1 400px",
+            minWidth: "300px",
+            border: `2px solid ${menuColor}`,
+            padding: "10px",
             borderRadius: "8px",
+            background: "linear-gradient(135deg, #1a0033, #330066)",
+            boxShadow: "0 0 15px rgba(0, 255, 255, 0.5)",
           }}
         >
           <Form.Group controlId="recipientAddress">
-            <Form.Label style={{ textShadow: "0 0 5px #ff00ff" }}>
+            <Form.Label style={{ textShadow: "0 0 6px #ff00ff" }}>
               Start a Chat
             </Form.Label>
             <Form.Control
@@ -176,138 +266,239 @@ function Dashboard() {
               required
               style={{
                 backgroundColor: "#1a0033",
-                color: "#00ffff",
-                border: "1px dashed #ff00ff",
+                color: "#ccffcc",
+                border: `1px dashed ${menuColor}`,
                 borderRadius: "5px",
-                padding: "10px",
+                padding: "8px",
                 fontSize: "14px",
-                textShadow: "0 0 3px #ff00ff",
+                textShadow: "0 0 3px #ccffcc",
+                transition: "border-color 0.4s",
               }}
             />
           </Form.Group>
           <Button
             variant="primary"
             type="submit"
-            className="mt-3"
+            className="mt-2"
             style={{
-              backgroundColor: "#ff00ff",
-              borderColor: "#ff00ff",
-              textShadow: "0 0 5px #00ffff",
-              padding: "10px 20px",
-              fontSize: "16px",
-              transition: "background-color 0.3s",
+              backgroundColor: menuColor,
+              borderColor: menuColor,
+              textShadow: "0 0 6px #00ffff",
+              padding: "8px 15px",
+              fontSize: "14px",
+              transition: "background-color 0.4s",
+              width: "100%",
+              borderRadius: "5px",
             }}
             onMouseEnter={(e) => (e.target.style.backgroundColor = "#00ffff")}
-            onMouseLeave={(e) => (e.target.style.backgroundColor = "#ff00ff")}
+            onMouseLeave={(e) => (e.target.style.backgroundColor = menuColor)}
           >
             Start Chat
           </Button>
         </Form>
-        {error && (
-          <Alert
-            variant="danger"
-            className="mt-3"
+        <div
+          style={{
+            flex: "2 1 600px",
+            minWidth: "300px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "10px",
+          }}
+        >
+          <div
             style={{
-              backgroundColor: "#330066",
-              border: "1px solid #ff00ff",
-              color: "#ff0000",
+              display: "flex",
+              gap: "10px",
+              alignItems: "center",
             }}
           >
-            {error}
-          </Alert>
-        )}
-      </div>
-      <div className="mt-4">
-        <h4 style={{ textShadow: "0 0 10px #00ffff" }}>Recent Chats</h4>
-        {recentChats.length === 0 ? (
-          <p style={{ color: "#00ffff" }}>No recent chats yet.</p>
-        ) : (
-          <ListGroup
-            style={{
-              maxHeight: "calc(100vh - 300px)",
-              overflowY: "auto",
-              background: "rgba(0, 0, 0, 0.5)",
-              border: "2px solid #ff00ff",
-              borderRadius: "5px",
-            }}
-          >
-            {recentChats.map((chat, index) => (
-              <ListGroup.Item
-                key={index}
+            <InputGroup style={{ flex: "1" }}>
+              <Form.Control
+                type="text"
+                placeholder="Search chats..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
                 style={{
                   backgroundColor: "#1a0033",
                   color: "#00ffff",
-                  position: "relative",
-                  padding: "10px",
-                  display: "flex",
-                  flexDirection: "column",
-                  borderBottom: "1px dashed #ff00ff",
-                  transition: "background-color 0.3s",
+                  border: `1px dashed ${menuColor}`,
+                  borderRadius: "5px",
+                  padding: "8px",
+                  fontSize: "14px",
+                  textShadow: "0 0 3px #ccffcc",
+                  transition: "border-color 0.4s",
                 }}
-                onMouseEnter={(e) =>
-                  (e.target.style.backgroundColor = "#00ccff")
-                }
-                onMouseLeave={(e) =>
-                  (e.target.style.backgroundColor = "#1a0033")
-                }
+              />
+            </InputGroup>
+            <Button
+              variant="primary"
+              onClick={refreshChats}
+              style={{
+                backgroundColor: menuColor,
+                borderColor: menuColor,
+                textShadow: "0 0 6px #00ffff",
+                padding: "8px 15px",
+                fontSize: "14px",
+                transition: "background-color 0.4s",
+                borderRadius: "5px",
+              }}
+              onMouseEnter={(e) => (e.target.style.backgroundColor = "#00ffff")}
+              onMouseLeave={(e) => (e.target.style.backgroundColor = menuColor)}
+            >
+              Refresh Chats
+            </Button>
+            <Button
+              variant="primary"
+              onClick={markAllRead}
+              style={{
+                backgroundColor: menuColor,
+                borderColor: menuColor,
+                textShadow: "0 0 6px #00ffff",
+                padding: "8px 15px",
+                fontSize: "14px",
+                transition: "background-color 0.4s",
+                borderRadius: "5px",
+              }}
+              onMouseEnter={(e) => (e.target.style.backgroundColor = "#00ffff")}
+              onMouseLeave={(e) => (e.target.style.backgroundColor = menuColor)}
+            >
+              Clear Notifications
+            </Button>
+          </div>
+          <div style={{ flex: "1", overflow: "auto" }}>
+            <h4 style={{ textShadow: "0 0 12px #00ffff", marginBottom: "5px" }}>
+              Recent Chats
+            </h4>
+            {filteredChats.length === 0 ? (
+              <p style={{ color: "#00ffff" }}>No recent chats yet.</p>
+            ) : (
+              <ListGroup
+                style={{
+                  background: "rgba(0, 0, 0, 0.5)",
+                  border: `2px solid ${menuColor}`,
+                  borderRadius: "5px",
+                  boxShadow: "0 0 15px rgba(0, 255, 255, 0.5)",
+                }}
               >
-                <Link
-                  to={`/chat/${chat.address}`}
-                  onClick={() => {
-                    if (chat.hasNewMessages) {
-                      setRecentChats((prevChats) =>
-                        prevChats.map((c) =>
-                          c.address === chat.address
-                            ? { ...c, hasNewMessages: false }
-                            : c
-                        )
-                      );
-                    }
-                  }}
-                  style={{
-                    color: "#00ffff",
-                    textDecoration: "none",
-                    fontWeight: "bold",
-                    marginBottom: "5px",
-                    textShadow: "0 0 5px #ff00ff",
-                  }}
-                >
-                  {chat.displayName}
-                </Link>
-                <div
-                  style={{
-                    color: "#00ffff",
-                    fontWeight: "normal",
-                    padding: "5px",
-                    backgroundColor: "#330066",
-                    borderRadius: "5px",
-                    maxWidth: "80%",
-                    wordWrap: "break-word",
-                    border: "1px dashed #ff00ff",
-                    boxShadow: "0 0 10px rgba(0, 255, 255, 0.5)",
-                  }}
-                >
-                  {chat.lastMessage || "No message content available"}
-                </div>
-                {chat.hasNewMessages && (
-                  <span
+                {filteredChats.map((chat, index) => (
+                  <ListGroup.Item
+                    key={index}
                     style={{
-                      position: "absolute",
-                      top: "5px",
-                      right: "5px",
-                      width: "10px",
-                      height: "10px",
-                      backgroundColor: "#ff00ff",
-                      borderRadius: "50%",
-                      boxShadow: "0 0 5px #00ffff",
+                      backgroundColor: "#1a0033",
+                      color: "#00ffff",
+                      position: "relative",
+                      padding: "8px",
+                      display: "flex",
+                      flexDirection: "column",
+                      borderBottom: `1px dashed ${menuColor}`,
+                      transition: "background-color 0.3s",
                     }}
-                  />
-                )}
-              </ListGroup.Item>
-            ))}
-          </ListGroup>
-        )}
+                    onMouseEnter={(e) =>
+                      (e.target.style.backgroundColor = "#00ccff")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.target.style.backgroundColor = "#1a0033")
+                    }
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: "10px",
+                          height: "10px",
+                          backgroundColor: chat.isActive
+                            ? "#00ff00"
+                            : "#808080",
+                          borderRadius: "50%",
+                          border: `1px solid ${menuColor}`,
+                        }}
+                      />
+                      <Link
+                        to={`/chat/${chat.address}`}
+                        onClick={() => {
+                          if (chat.hasNewMessages) {
+                            setRecentChats((prevChats) =>
+                              prevChats.map((c) =>
+                                c.address === chat.address
+                                  ? { ...c, hasNewMessages: false }
+                                  : c
+                              )
+                            );
+                          }
+                        }}
+                        style={{
+                          color: "#00ffff",
+                          textDecoration: "none",
+                          fontWeight: "bold",
+                          marginBottom: "5px",
+                          textShadow: "0 0 5px #ff00ff",
+                          flex: "1",
+                        }}
+                      >
+                        {chat.displayName}
+                      </Link>
+                    </div>
+                    <div
+                      style={{
+                        color: "#00ffff",
+                        fontWeight: "normal",
+                        padding: "5px",
+                        backgroundColor: "#330066",
+                        borderRadius: "5px",
+                        maxWidth: "80%",
+                        wordWrap: "break-word",
+                        border: `1px dashed ${menuColor}`,
+                        boxShadow: "0 0 10px rgba(0, 255, 255, 0.5)",
+                      }}
+                    >
+                      {chat.lastMessage || "No message content available"}
+                    </div>
+                    {chat.hasNewMessages && (
+                      <span
+                        style={{
+                          position: "absolute",
+                          top: "5px",
+                          right: "5px",
+                          width: "10px",
+                          height: "10px",
+                          backgroundColor: menuColor,
+                          borderRadius: "50%",
+                          boxShadow: "0 0 5px #00ffff",
+                        }}
+                      />
+                    )}
+                  </ListGroup.Item>
+                ))}
+              </ListGroup>
+            )}
+          </div>
+        </div>
       </div>
+      {error && (
+        <Alert
+          variant="danger"
+          className="mt-2"
+          style={{
+            backgroundColor: "#330066",
+            border: `1px solid ${menuColor}`,
+            color: "#ff0000",
+            position: "absolute",
+            top: "10px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: "90%",
+            maxWidth: "600px",
+            boxShadow: "0 0 15px rgba(255, 0, 0, 0.5)",
+          }}
+        >
+          {error}
+        </Alert>
+      )}
     </Container>
   );
 }
