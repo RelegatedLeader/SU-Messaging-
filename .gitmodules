@@ -1,0 +1,3 @@
+[submodule "su-frontend"]
+    path = su-frontend
+    url = https://github.com/RelegatedLeader/su-frontend.git
