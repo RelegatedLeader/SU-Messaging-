@@ -42,7 +42,7 @@ function Settings() {
       }
     };
     fetchCurrentName();
-  }, [isConnected, currentAccount]);
+  }, [isConnected, currentAccount, client]); // Added client
 
   const handleRegisterOrUpdate = async (e) => {
     e.preventDefault();

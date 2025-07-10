@@ -27,9 +27,6 @@ function Chat() {
   const [recipientName, setRecipientName] = useState(
     recipientAddress || "Stranger"
   );
-  const [userName, setUserName] = useState(
-    currentAccount?.address.slice(0, 6) + "..." || "RetroUser"
-  );
   const [recentChats, setRecentChats] = useState([]);
   const chatContentRef = useRef(null);
   const client = new SuiClient({ url: "https://fullnode.mainnet.sui.io:443" });
@@ -42,11 +39,18 @@ function Chat() {
     const fetchNames = async () => {
       if (isConnected && currentAccount && recipientAddress) {
         setRecipientName(await fetchUserName(recipientAddress));
-        setUserName(await fetchUserName(currentAccount.address));
+        // Removed unused userName state
       }
     };
     fetchNames();
-  }, [isConnected, currentAccount, recipientAddress]);
+  }, [
+    isConnected,
+    currentAccount,
+    recipientAddress,
+    fetchMessages,
+    fetchRecentChats,
+    fetchUserName,
+  ]); // Added missing dependencies
 
   useEffect(() => {
     scrollToBottom();

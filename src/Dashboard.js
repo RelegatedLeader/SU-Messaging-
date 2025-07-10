@@ -126,7 +126,7 @@ function Dashboard() {
       setError("Failed to fetch recent chats: " + err.message);
       console.error(err);
     }
-  }, [isConnected, currentAccount]);
+  }, [isConnected, currentAccount, client]); // Added client
 
   useEffect(() => {
     fetchRecentChats();

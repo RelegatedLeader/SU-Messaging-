@@ -61,7 +61,7 @@ function AppContent() {
       setMenuColor(`rgb(${r}, ${g}, ${b})`);
     }, 100);
     return () => clearInterval(interval);
-  }, [isConnected, currentAccount]);
+  }, [isConnected, currentAccount, client]); // Added client
 
   const handleDashboardClick = (e) => {
     if (!isConnected) {
