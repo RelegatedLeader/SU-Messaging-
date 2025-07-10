@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
 import {
   Container,
   Row,
@@ -29,57 +35,40 @@ function Chat() {
   );
   const [recentChats, setRecentChats] = useState([]);
   const chatContentRef = useRef(null);
-  const client = new SuiClient({ url: "https://fullnode.mainnet.sui.io:443" });
+  const client = useMemo(
+    () => new SuiClient({ url: "https://fullnode.mainnet.sui.io:443" }),
+    []
+  ); // Wrapped in useMemo
   const packageId =
     "0x3c7d131d38c117cbc75e3a8349ea3c841776ad6c6168e9590ba1fc4478018799";
 
-  useEffect(() => {
-    fetchMessages();
-    fetchRecentChats();
-    const fetchNames = async () => {
-      if (isConnected && currentAccount && recipientAddress) {
-        setRecipientName(await fetchUserName(recipientAddress));
-        // Removed unused userName state
-      }
-    };
-    fetchNames();
-  }, [
-    isConnected,
-    currentAccount,
-    recipientAddress,
-    fetchMessages,
-    fetchRecentChats,
-    fetchUserName,
-  ]); // Added missing dependencies
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const fetchUserName = async (address) => {
-    if (!isConnected || !currentAccount) return address.slice(0, 6) + "...";
-    try {
-      const objects = await client.getOwnedObjects({
-        owner: address,
-        options: { showType: true, showContent: true },
-      });
-      const userObject = objects.data.find((obj) =>
-        obj.data.type.includes(
-          "0x3f455d572c2b923918a0623bef2e075b9870dc650c2f9e164aa2ea5693506d80::su_messaging::User"
-        )
-      );
-      return userObject?.data.content.fields.display_name
-        ? new TextDecoder().decode(
-            new Uint8Array(userObject.data.content.fields.display_name)
+  // Define functions before use
+  const fetchUserName = useCallback(
+    async (address) => {
+      try {
+        const objects = await client.getOwnedObjects({
+          owner: address,
+          options: { showType: true, showContent: true },
+        });
+        const userObject = objects.data.find((obj) =>
+          obj.data.type.includes(
+            "0x3f455d572c2b923918a0623bef2e075b9870dc650c2f9e164aa2ea5693506d80::su_messaging::User"
           )
-        : address.slice(0, 6) + "...";
-    } catch (err) {
-      console.error("Failed to fetch username:", err);
-      return address.slice(0, 6) + "...";
-    }
-  };
+        );
+        return userObject?.data.content.fields.display_name
+          ? new TextDecoder().decode(
+              new Uint8Array(userObject.data.content.fields.display_name)
+            )
+          : address.slice(0, 6) + "...";
+      } catch (err) {
+        console.error("Failed to fetch username:", err);
+        return address.slice(0, 6) + "...";
+      }
+    },
+    [client]
+  );
 
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     if (!isConnected || !currentAccount || !recipientAddress) return;
     try {
       const senderAddress = currentAccount.address;
@@ -169,9 +158,9 @@ function Chat() {
       setError("Failed to fetch messages: " + err.message);
       console.error("Fetch error details:", err);
     }
-  };
+  }, [isConnected, currentAccount, recipientAddress, client]);
 
-  const fetchRecentChats = async () => {
+  const fetchRecentChats = useCallback(async () => {
     if (!isConnected || !currentAccount) return;
     try {
       const senderAddress = currentAccount.address;
@@ -209,7 +198,29 @@ function Chat() {
     } catch (err) {
       console.error("Failed to fetch recent chats:", err);
     }
-  };
+  }, [isConnected, currentAccount, client, fetchUserName]); // Added fetchUserName
+
+  useEffect(() => {
+    fetchMessages();
+    fetchRecentChats();
+    const fetchNames = async () => {
+      if (isConnected && currentAccount && recipientAddress) {
+        setRecipientName(await fetchUserName(recipientAddress));
+      }
+    };
+    fetchNames();
+  }, [
+    isConnected,
+    currentAccount,
+    recipientAddress,
+    fetchMessages,
+    fetchRecentChats,
+    fetchUserName,
+  ]); // Added fetchUserName
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   const handleSend = async (e) => {
     e.preventDefault();
@@ -233,7 +244,7 @@ function Chat() {
         ],
       });
 
-      const result = await signAndExecuteTransactionBlock({
+      await signAndExecuteTransactionBlock({
         transactionBlock: tx,
         options: { showEffects: true },
         account: currentAccount,

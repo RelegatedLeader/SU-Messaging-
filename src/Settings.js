@@ -15,13 +15,15 @@ function Settings() {
   const [disableWalletPopup, setDisableWalletPopup] = useState(
     localStorage.getItem("disableWalletPopup") === "true"
   );
-  const client = new SuiClient({ url: "https://fullnode.mainnet.sui.io:443" });
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [donationAmount, setDonationAmount] = useState("");
   const [subscriptionStatus, setSubscriptionStatus] = useState(null);
 
   useEffect(() => {
     const fetchCurrentName = async () => {
+      const client = new SuiClient({
+        url: "https://fullnode.mainnet.sui.io:443",
+      });
       if (isConnected && currentAccount) {
         const objects = await client.getOwnedObjects({
           owner: currentAccount.address,
@@ -42,7 +44,7 @@ function Settings() {
       }
     };
     fetchCurrentName();
-  }, [isConnected, currentAccount, client]); // Added client
+  }, [isConnected, currentAccount]);
 
   const handleRegisterOrUpdate = async (e) => {
     e.preventDefault();

@@ -7,6 +7,7 @@ import {
   useWalletKit,
   ConnectButton,
 } from "@mysten/wallet-kit";
+import { SuiClient } from "@mysten/sui.js/client"; // Added import
 import {
   BrowserRouter as Router,
   Routes,
@@ -14,7 +15,6 @@ import {
   Navigate,
   Link,
 } from "react-router-dom";
-import { SuiClient } from "@mysten/sui.js/client";
 import logo from "./img/su-logo.png";
 import Dashboard from "./Dashboard";
 import Chat from "./Chat";
@@ -25,9 +25,11 @@ function AppContent() {
   const [menuColor, setMenuColor] = useState("#ff00ff"); // Default to pink from Chat.js
   const [showWalletModal, setShowWalletModal] = useState(false);
   const { isConnected, currentAccount } = useWalletKit();
-  const client = new SuiClient({ url: "https://fullnode.mainnet.sui.io:443" });
 
   useEffect(() => {
+    const client = new SuiClient({
+      url: "https://fullnode.mainnet.sui.io:443",
+    });
     const fetchUserName = async () => {
       if (isConnected && currentAccount) {
         const objects = await client.getOwnedObjects({
@@ -61,7 +63,7 @@ function AppContent() {
       setMenuColor(`rgb(${r}, ${g}, ${b})`);
     }, 100);
     return () => clearInterval(interval);
-  }, [isConnected, currentAccount, client]); // Added client
+  }, [isConnected, currentAccount]);
 
   const handleDashboardClick = (e) => {
     if (!isConnected) {

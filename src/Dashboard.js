@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Container,
   Form,
@@ -20,7 +20,10 @@ function Dashboard() {
   const [menuColor, setMenuColor] = useState("#ff00ff"); // Sync with App.js default
   const navigate = useNavigate();
   const { isConnected, currentAccount } = useWalletKit();
-  const client = new SuiClient({ url: "https://fullnode.mainnet.sui.io:443" });
+  const client = useMemo(
+    () => new SuiClient({ url: "https://fullnode.mainnet.sui.io:443" }),
+    []
+  );
 
   const fetchRecentChats = useCallback(async () => {
     if (!isConnected || !currentAccount) return;
@@ -126,7 +129,7 @@ function Dashboard() {
       setError("Failed to fetch recent chats: " + err.message);
       console.error(err);
     }
-  }, [isConnected, currentAccount, client]); // Added client
+  }, [isConnected, currentAccount, client]);
 
   useEffect(() => {
     fetchRecentChats();
