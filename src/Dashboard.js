@@ -6,11 +6,11 @@ import {
   Alert,
   ListGroup,
   InputGroup,
-  Badge,
 } from "react-bootstrap";
 import { useNavigate, Link } from "react-router-dom";
 import { useWalletKit } from "@mysten/wallet-kit";
 import { SuiClient } from "@mysten/sui.js/client";
+import Long from "long"; // Added for timestamp handling
 
 function Dashboard() {
   const [recipientAddress, setRecipientAddress] = useState("");
@@ -35,36 +35,25 @@ function Dashboard() {
 
       let allEvents = [];
       let cursor = null;
-      let hasNextPage = true;
 
-      do {
-        const response = await client.queryEvents({
-          query: {
-            MoveEventType: `${packageId}::message::MessageCreated`,
-          },
-          limit: 50,
-          cursor,
-          order: "ascending",
-        });
-        console.log("Events response for recent chats:", response.data);
-        allEvents = [...allEvents, ...response.data];
-        cursor = response.nextCursor;
-        hasNextPage = response.hasNextPage;
-      } while (hasNextPage);
-
-      console.log("Fetched events for recent chats:", allEvents);
+      // Single fetch with sufficient limit to avoid excessive looping
+      const response = await client.queryEvents({
+        query: { MoveEventType: `${packageId}::message::MessageCreated` },
+        limit: 100, // Adequate limit to cover recent chats
+        order: "ascending",
+      });
+      allEvents = [...allEvents, ...response.data];
 
       const recipients = new Set();
       for (const event of allEvents) {
         const { sender, recipient } = event.parsedJson || {};
         if (!sender || !recipient) continue;
-        console.log(
-          `Event in recent chats: sender=${sender}, recipient=${recipient}`
-        );
-        if (sender === senderAddress) {
-          recipients.add(recipient);
-        } else if (recipient === senderAddress) {
-          recipients.add(sender);
+        if (
+          (sender === senderAddress && recipient !== senderAddress) ||
+          (recipient === senderAddress && sender !== senderAddress)
+        ) {
+          if (sender === senderAddress) recipients.add(recipient);
+          else recipients.add(sender);
         }
       }
 
@@ -86,40 +75,72 @@ function Dashboard() {
               )
             : address.slice(0, 6) + "...";
 
+          let lastMessage = "No messages yet";
+          let hasNewMessages = false;
+
           const relevantEvents = allEvents.filter(
             (event) =>
-              event.parsedJson.sender === address ||
-              event.parsedJson.recipient === address
+              (event.parsedJson.sender === address &&
+                event.parsedJson.recipient === senderAddress) ||
+              (event.parsedJson.recipient === address &&
+                event.parsedJson.sender === senderAddress)
           );
-          const lastEvent = relevantEvents.sort(
-            (a, b) =>
-              Number(b.parsedJson.timestamp) - Number(a.parsedJson.timestamp)
-          )[0];
-          const lastMessage = lastEvent
-            ? new TextDecoder().decode(
-                new Uint8Array(lastEvent.parsedJson.content)
-              )
-            : "No messages yet";
-          console.log(
-            `Last message for ${address}: ${lastMessage}, Timestamp: ${lastEvent?.parsedJson.timestamp}`
-          );
+          if (relevantEvents.length > 0) {
+            const latestEvent = relevantEvents.sort(
+              (a, b) =>
+                Number(b.parsedJson.timestamp) - Number(a.parsedJson.timestamp)
+            )[0];
+            const [senderObjects, recipientObjects] = await Promise.all([
+              client.getOwnedObjects({
+                owner: senderAddress,
+                filter: {
+                  MatchAll: [{ StructType: `${packageId}::message::Message` }],
+                },
+                options: { showContent: true, showType: true },
+              }),
+              client.getOwnedObjects({
+                owner: address,
+                filter: {
+                  MatchAll: [{ StructType: `${packageId}::message::Message` }],
+                },
+                options: { showContent: true, showType: true },
+              }),
+            ]);
 
-          const hasNewMessages = allEvents.some(
-            (event) =>
-              event.parsedJson.sender === address &&
-              event.parsedJson.recipient === senderAddress &&
-              !event.parsedJson.is_read
-          );
-          const isActive = lastEvent
-            ? Date.now() - Number(lastEvent.parsedJson.timestamp) < 86400000
-            : false; // Active if within 24 hours
+            const allObjects = [
+              ...senderObjects.data,
+              ...recipientObjects.data,
+            ];
+            const latestTimestamp = latestEvent.parsedJson.timestamp
+              ? Long.fromValue(latestEvent.parsedJson.timestamp).toNumber()
+              : 0; // Fallback if timestamp is invalid
+            for (const obj of allObjects) {
+              const fields = obj.data?.content?.fields;
+              if (
+                fields &&
+                ((fields.sender === senderAddress &&
+                  fields.recipient === address) ||
+                  (fields.sender === address &&
+                    fields.recipient === senderAddress))
+              ) {
+                const timestampMs = fields.timestamp
+                  ? Long.fromValue(fields.timestamp).toNumber()
+                  : 0; // Fallback for invalid timestamp
+                if (timestampMs >= latestTimestamp) {
+                  lastMessage = new TextDecoder().decode(
+                    new Uint8Array(fields.content)
+                  );
+                  hasNewMessages = !fields.is_read; // Sync with Chat.js
+                }
+              }
+            }
+          }
 
           return {
             address,
             displayName,
             lastMessage,
             hasNewMessages,
-            isActive,
           };
         })
       );
@@ -134,7 +155,6 @@ function Dashboard() {
   useEffect(() => {
     fetchRecentChats();
 
-    // Dynamic color animation synced with App.js
     let r = 255;
     let g = 0;
     let b = 255;
@@ -169,16 +189,6 @@ function Dashboard() {
       chat.address.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const markAllRead = () => {
-    setRecentChats((prevChats) =>
-      prevChats.map((chat) => ({ ...chat, hasNewMessages: false }))
-    );
-  };
-
-  const refreshChats = () => {
-    fetchRecentChats();
-  };
-
   return (
     <Container
       className="mt-3"
@@ -211,31 +221,6 @@ function Dashboard() {
         }}
       >
         Dashboard
-        <Badge
-          bg="danger"
-          style={{
-            backgroundColor: menuColor,
-            color: "#00ffff",
-            textShadow: "0 0 5px #00ffff",
-            padding: "5px 10px",
-            borderRadius: "10px",
-            transition: "background-color 0.4s",
-          }}
-        >
-          {recentChats.filter((chat) => chat.hasNewMessages).length}
-        </Badge>
-        <Badge
-          bg="secondary"
-          style={{
-            backgroundColor: "#330066",
-            color: "#00ffff",
-            textShadow: "0 0 5px #00ffff",
-            padding: "5px 10px",
-            borderRadius: "10px",
-          }}
-        >
-          {recentChats.length} Chats
-        </Badge>
       </h2>
       <div
         style={{
@@ -243,6 +228,7 @@ function Dashboard() {
           flexWrap: "wrap",
           gap: "15px",
           justifyContent: "space-between",
+          minHeight: "500px",
         }}
       >
         <Form
@@ -268,8 +254,8 @@ function Dashboard() {
               onChange={(e) => setRecipientAddress(e.target.value)}
               required
               style={{
-                backgroundColor: "#1a0033",
-                color: "#ccffcc",
+                backgroundColor: "white",
+                color: "black",
                 border: `1px dashed ${menuColor}`,
                 borderRadius: "5px",
                 padding: "8px",
@@ -308,67 +294,34 @@ function Dashboard() {
             gap: "10px",
           }}
         >
-          <div
+          <InputGroup
             style={{
-              display: "flex",
-              gap: "10px",
-              alignItems: "center",
+              height: "38px", // Matches typical Bootstrap input height
             }}
           >
-            <InputGroup style={{ flex: "1" }}>
-              <Form.Control
-                type="text"
-                placeholder="Search chats..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                style={{
-                  backgroundColor: "#1a0033",
-                  color: "#00ffff",
-                  border: `1px dashed ${menuColor}`,
-                  borderRadius: "5px",
-                  padding: "8px",
-                  fontSize: "14px",
-                  textShadow: "0 0 3px #ccffcc",
-                  transition: "border-color 0.4s",
-                }}
-              />
-            </InputGroup>
-            <Button
-              variant="primary"
-              onClick={refreshChats}
+            <Form.Control
+              type="text"
+              placeholder="Search chats..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               style={{
-                backgroundColor: menuColor,
-                borderColor: menuColor,
-                textShadow: "0 0 6px #00ffff",
-                padding: "8px 15px",
-                fontSize: "14px",
-                transition: "background-color 0.4s",
+                backgroundColor: "white",
+                color: "black",
+                border: `1px dashed ${menuColor}`,
                 borderRadius: "5px",
-              }}
-              onMouseEnter={(e) => (e.target.style.backgroundColor = "#00ffff")}
-              onMouseLeave={(e) => (e.target.style.backgroundColor = menuColor)}
-            >
-              Refresh Chats
-            </Button>
-            <Button
-              variant="primary"
-              onClick={markAllRead}
-              style={{
-                backgroundColor: menuColor,
-                borderColor: menuColor,
-                textShadow: "0 0 6px #00ffff",
-                padding: "8px 15px",
+                padding: "8px",
                 fontSize: "14px",
-                transition: "background-color 0.4s",
-                borderRadius: "5px",
+                textShadow: "0 0 3px #ccffcc",
+                transition: "border-color 0.4s",
+                height: "38px", // Matches typical Bootstrap input height
               }}
-              onMouseEnter={(e) => (e.target.style.backgroundColor = "#00ffff")}
-              onMouseLeave={(e) => (e.target.style.backgroundColor = menuColor)}
-            >
-              Clear Notifications
-            </Button>
-          </div>
-          <div style={{ flex: "1", overflow: "auto" }}>
+            />
+          </InputGroup>
+          <div
+            style={{
+              overflow: "auto", // Keep scroll for overflow
+            }}
+          >
             <h4 style={{ textShadow: "0 0 12px #00ffff", marginBottom: "5px" }}>
               Recent Chats
             </h4>

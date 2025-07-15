@@ -74,20 +74,16 @@ function Chat() {
       const senderAddress = currentAccount.address;
       let allEvents = [];
       let cursor = null;
-      let hasNextPage = true;
 
-      do {
-        const response = await client.queryEvents({
-          query: { MoveEventType: `${packageId}::message::MessageCreated` },
-          limit: 100,
-          cursor,
-          order: "ascending",
-        });
-        console.log("Query response:", response.data);
-        allEvents = [...allEvents, ...response.data];
-        cursor = response.nextCursor;
-        hasNextPage = response.hasNextPage;
-      } while (hasNextPage);
+      // Limit initial fetch to 20 events for faster loading
+      const response = await client.queryEvents({
+        query: { MoveEventType: `${packageId}::message::MessageCreated` },
+        limit: 20,
+        cursor,
+        order: "ascending",
+      });
+      allEvents = [...allEvents, ...response.data];
+      cursor = response.nextCursor;
 
       const fetchedMessages = [];
       const seenIds = new Set();
@@ -128,16 +124,6 @@ function Chat() {
               const content = new TextDecoder().decode(
                 new Uint8Array(fields.content)
               );
-              console.log(
-                "Event:",
-                event,
-                "Raw timestamp:",
-                fields.timestamp,
-                "Parsed:",
-                timestampMs,
-                "Formatted:",
-                timestamp.toLocaleString()
-              );
               fetchedMessages.push({
                 id: obj.data.objectId,
                 sender: fields.sender,
@@ -171,7 +157,7 @@ function Chat() {
       do {
         const response = await client.queryEvents({
           query: { MoveEventType: `${packageId}::message::MessageCreated` },
-          limit: 100,
+          limit: 20, // Reduced limit for faster loading
           cursor,
           order: "ascending",
         });
@@ -198,7 +184,7 @@ function Chat() {
     } catch (err) {
       console.error("Failed to fetch recent chats:", err);
     }
-  }, [isConnected, currentAccount, client, fetchUserName]); // Added fetchUserName
+  }, [isConnected, currentAccount, client, fetchUserName]);
 
   useEffect(() => {
     fetchMessages();
@@ -216,7 +202,7 @@ function Chat() {
     fetchMessages,
     fetchRecentChats,
     fetchUserName,
-  ]); // Added fetchUserName
+  ]);
 
   useEffect(() => {
     scrollToBottom();
@@ -362,7 +348,7 @@ function Chat() {
           <ListGroup
             style={{
               flex: "1",
-              overflowY: "auto",
+              overflowY: "auto", // Enabled scrolling
               maxHeight: "calc(600px - 170px)", // Adjusted for header and padding
               background: "rgba(0, 0, 0, 0.5)",
             }}
@@ -450,7 +436,7 @@ function Chat() {
             ref={chatContentRef}
             style={{
               flexGrow: 1,
-              overflowY: "hidden", // No scrolling, fixed content
+              overflowY: "auto", // Enabled scrolling
               padding: "15px",
               background: "rgba(0, 0, 0, 0.7)",
               border: "2px solid #ff00ff",
