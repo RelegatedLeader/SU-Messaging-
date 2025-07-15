@@ -75,12 +75,18 @@ function AppContent() {
 
   const handleWebConnect = () => {
     if (window.innerWidth < 768 && selectedWallet) {
-      // Native mobile wallet connection for SUI Wallet (Slush) with redirect
+      // Attempt WalletConnect-like URI for Slush handshake
       if (selectedWallet === "sui") {
         const redirectUri = "https://your-site-name.netlify.app"; // Replace with your Netlify URL
-        window.location.href = `slush://connect?redirect_uri=${encodeURIComponent(
+        const wcUri = `wc://connect?redirect_uri=${encodeURIComponent(
           redirectUri
-        )}`; // Assumed callback structure
+        )}&bridge=https://bridge.walletconnect.org`; // Placeholder WalletConnect URI
+        window.location.href = wcUri; // Test with WalletConnect structure
+        setTimeout(() => {
+          if (!isConnected) {
+            connect(); // Fallback to manual connection if handshake fails
+          }
+        }, 5000); // 5-second timeout for redirect
       }
       setShowWalletModal(false);
     }
@@ -94,7 +100,7 @@ function AppContent() {
       connect(); // Attempt to connect after redirect
       setShowWalletModal(false); // Close modal on success
     }
-  }, [connect]); // Added connect to dependency array
+  }, [connect]);
 
   // Simple mobile detection based on window width (e.g., < 768px for mobile)
   const isMobile = window.innerWidth < 768;
