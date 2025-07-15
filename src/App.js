@@ -75,10 +75,10 @@ function AppContent() {
 
   const handleWebConnect = () => {
     if (window.innerWidth < 768 && selectedWallet) {
-      // Native mobile wallet connection for SUI Wallet
+      // Native mobile wallet connection for SUI Wallet (Slush)
       if (selectedWallet === "sui") {
-        // SUI Wallet deep link (official scheme as of July 2025)
-        window.location.href = "sui-wallet://connect"; // Verify with SUI Wallet docs
+        // Updated SUI Wallet (Slush) deep link as of July 2025
+        window.location.href = "slush://connect"; // Verify with latest Slush docs
       }
       setShowWalletModal(false);
     }
