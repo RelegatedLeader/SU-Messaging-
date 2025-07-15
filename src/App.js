@@ -24,7 +24,7 @@ function AppContent() {
   const [userName, setUserName] = useState("");
   const [menuColor, setMenuColor] = useState("#ff00ff"); // Default to pink from Chat.js
   const [showWalletModal, setShowWalletModal] = useState(false);
-  const { isConnected, currentAccount, connect } = useWalletKit(); // Added connect for manual connection
+  const { isConnected, currentAccount } = useWalletKit();
   const [selectedWallet, setSelectedWallet] = useState(""); // For mobile wallet selection
 
   useEffect(() => {
@@ -74,33 +74,25 @@ function AppContent() {
   };
 
   const handleWebConnect = () => {
-    if (window.innerWidth < 768 && selectedWallet) {
-      // Attempt WalletConnect-like URI for Slush handshake
-      if (selectedWallet === "sui") {
-        const redirectUri = "https://your-site-name.netlify.app"; // Replace with your Netlify URL
-        const wcUri = `wc://connect?redirect_uri=${encodeURIComponent(
-          redirectUri
-        )}&bridge=https://bridge.walletconnect.org`; // Placeholder WalletConnect URI
-        window.location.href = wcUri; // Test with WalletConnect structure
-        setTimeout(() => {
-          if (!isConnected) {
-            connect(); // Fallback to manual connection if handshake fails
-          }
-        }, 5000); // 5-second timeout for redirect
-      }
+    if (window.innerWidth < 768 && selectedWallet === "sui") {
+      const deepLink = "slush://";
+      window.location.href = deepLink;
+      setTimeout(() => {
+        let storeUrl;
+        if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+          storeUrl =
+            "https://apps.apple.com/us/app/slush-a-sui-wallet/id6476572140";
+        } else if (/Android/i.test(navigator.userAgent)) {
+          storeUrl =
+            "https://play.google.com/store/apps/details?id=com.mystenlabs.suiwallet";
+        } else {
+          storeUrl = "https://slush.app/";
+        }
+        window.location.href = storeUrl;
+      }, 3000);
       setShowWalletModal(false);
     }
   };
-
-  // Handle redirect callback (simplified for now)
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const connected = urlParams.get("connected");
-    if (connected === "true") {
-      connect(); // Attempt to connect after redirect
-      setShowWalletModal(false); // Close modal on success
-    }
-  }, [connect]);
 
   // Simple mobile detection based on window width (e.g., < 768px for mobile)
   const isMobile = window.innerWidth < 768;
@@ -181,7 +173,7 @@ function AppContent() {
                   (e.target.style.backgroundColor = menuColor)
                 }
               >
-                WebConnect
+                Connect Wallet
               </Button>
             ) : (
               <ConnectButton
@@ -293,10 +285,7 @@ function AppContent() {
         onHide={() => setShowWalletModal(false)}
         centered
         style={{
-          maxWidth: "90%", // Responsive width for mobile
-          [`@media (maxWidth: 767px)`]: {
-            width: "90%",
-          },
+          maxWidth: "90%",
         }}
       >
         <Modal.Header
@@ -335,12 +324,14 @@ function AppContent() {
                 }}
               >
                 <option value="">Select Wallet</option>
-                <option value="sui">SUI Wallet</option>
-                {/* Removed Phantom Wallet option */}
+                <option value="sui">SUI Wallet (Slush)</option>
               </Form.Select>
               <p>
-                Connecting will open your wallet app for secure authentication
-                and return to this site.
+                This will attempt to open the Slush Wallet app. If installed,
+                navigate to the 'Apps' tab and enter this site's URL:{" "}
+                {window.location.origin} to load the app inside the wallet for
+                automatic connection. If not installed, you will be redirected
+                to the app store.
               </p>
             </div>
           ) : (
@@ -386,7 +377,7 @@ function AppContent() {
               onMouseEnter={(e) => (e.target.style.backgroundColor = "#00ffff")}
               onMouseLeave={(e) => (e.target.style.backgroundColor = menuColor)}
             >
-              Connect
+              Open Wallet
             </Button>
           )}
         </Modal.Footer>
