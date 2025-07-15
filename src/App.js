@@ -24,7 +24,7 @@ function AppContent() {
   const [userName, setUserName] = useState("");
   const [menuColor, setMenuColor] = useState("#ff00ff"); // Default to pink from Chat.js
   const [showWalletModal, setShowWalletModal] = useState(false);
-  const { isConnected, currentAccount } = useWalletKit();
+  const { isConnected, currentAccount, connect } = useWalletKit(); // Added connect for manual connection
   const [selectedWallet, setSelectedWallet] = useState(""); // For mobile wallet selection
 
   useEffect(() => {
@@ -75,14 +75,26 @@ function AppContent() {
 
   const handleWebConnect = () => {
     if (window.innerWidth < 768 && selectedWallet) {
-      // Native mobile wallet connection for SUI Wallet (Slush)
+      // Native mobile wallet connection for SUI Wallet (Slush) with redirect
       if (selectedWallet === "sui") {
-        // Updated SUI Wallet (Slush) deep link as of July 2025
-        window.location.href = "slush://connect"; // Verify with latest Slush docs
+        const redirectUri = "https://your-site-name.netlify.app"; // Replace with your Netlify URL
+        window.location.href = `slush://connect?redirect_uri=${encodeURIComponent(
+          redirectUri
+        )}`; // Assumed callback structure
       }
       setShowWalletModal(false);
     }
   };
+
+  // Handle redirect callback (simplified for now)
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const connected = urlParams.get("connected");
+    if (connected === "true") {
+      connect(); // Attempt to connect after redirect
+      setShowWalletModal(false); // Close modal on success
+    }
+  }, []);
 
   // Simple mobile detection based on window width (e.g., < 768px for mobile)
   const isMobile = window.innerWidth < 768;
@@ -321,7 +333,8 @@ function AppContent() {
                 {/* Removed Phantom Wallet option */}
               </Form.Select>
               <p>
-                Connecting will open your wallet app for secure authentication.
+                Connecting will open your wallet app for secure authentication
+                and return to this site.
               </p>
             </div>
           ) : (
