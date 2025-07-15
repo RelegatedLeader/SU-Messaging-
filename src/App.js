@@ -94,7 +94,7 @@ function AppContent() {
       connect(); // Attempt to connect after redirect
       setShowWalletModal(false); // Close modal on success
     }
-  }, []);
+  }, [connect]); // Added connect to dependency array
 
   // Simple mobile detection based on window width (e.g., < 768px for mobile)
   const isMobile = window.innerWidth < 768;
