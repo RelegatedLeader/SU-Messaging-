@@ -34,7 +34,6 @@ function Dashboard() {
         "0x3c7d131d38c117cbc75e3a8349ea3c841776ad6c6168e9590ba1fc4478018799";
 
       let allEvents = [];
-      let cursor = null;
 
       // Single fetch with sufficient limit to avoid excessive looping
       const response = await client.queryEvents({
