@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
-import { Container, Navbar, Nav, Button, Modal } from "react-bootstrap";
+import { Container, Navbar, Nav, Button, Modal, Form } from "react-bootstrap";
 import {
   WalletKitProvider,
   useWalletKit,
@@ -20,18 +20,16 @@ import Dashboard from "./Dashboard";
 import Chat from "./Chat";
 import Settings from "./Settings";
 
-// Optional: Uncomment and install with `npm install qrcode.react` if you want QR codes
-// import QRCode from "qrcode.react";
-
 function AppContent() {
   const [userName, setUserName] = useState("");
   const [menuColor, setMenuColor] = useState("#ff00ff"); // Default to pink from Chat.js
   const [showWalletModal, setShowWalletModal] = useState(false);
   const { isConnected, currentAccount } = useWalletKit();
+  const [selectedWallet, setSelectedWallet] = useState(""); // For mobile wallet selection
 
   useEffect(() => {
     const client = new SuiClient({
-      url: "https://fullnode.mainnet.sui.io:443",
+      url: "https://fullnode.testnet.sui.io", // Testnet for local CORS
     });
     const fetchUserName = async () => {
       if (isConnected && currentAccount) {
@@ -76,17 +74,14 @@ function AppContent() {
   };
 
   const handleWebConnect = () => {
-    // Mobile-native wallet connection (e.g., QR code or deep link)
-    if (window.innerWidth < 768) {
-      // Option 1: QR Code (uncomment and install qrcode.react if desired)
-      // return <QRCode value="your-wallet-connection-url" />; // Replace with actual URL
-
-      // Option 2: Placeholder with alert (current implementation)
-      alert(
-        "Scan this QR code or use the deep link to connect your mobile wallet. (Implement QR code generation here, e.g., with qrcode.react)"
-      );
+    if (window.innerWidth < 768 && selectedWallet) {
+      // Native mobile wallet connection for SUI Wallet
+      if (selectedWallet === "sui") {
+        // SUI Wallet deep link (official scheme as of July 2025)
+        window.location.href = "sui-wallet://connect"; // Verify with SUI Wallet docs
+      }
+      setShowWalletModal(false);
     }
-    setShowWalletModal(false);
   };
 
   // Simple mobile detection based on window width (e.g., < 768px for mobile)
@@ -102,13 +97,13 @@ function AppContent() {
           position: "sticky",
           top: 0,
           zIndex: 1000,
-          border: `4px solid ${menuColor}`, // Slightly reduced border thickness
-          borderRadius: "12px", // Slightly reduced radius
-          boxShadow: "0 0 20px rgba(0, 255, 255, 0.7)", // Reduced shadow intensity
+          border: `4px solid ${menuColor}`,
+          borderRadius: "12px",
+          boxShadow: "0 0 20px rgba(0, 255, 255, 0.7)",
           fontFamily: "Orbitron, sans-serif",
           color: "#00ffff",
           background: "linear-gradient(135deg, #1a0033, #440088)",
-          padding: "8px 15px", // Reduced padding
+          padding: "8px 15px",
         }}
       >
         <Container>
@@ -118,16 +113,16 @@ function AppContent() {
                 src={logo}
                 alt="SU Logo"
                 style={{
-                  width: "40px", // Reduced size
-                  height: "40px", // Reduced size
-                  border: `2px solid ${menuColor}`, // Reduced border thickness
-                  borderRadius: "8px", // Reduced radius
+                  width: "40px",
+                  height: "40px",
+                  border: `2px solid ${menuColor}`,
+                  borderRadius: "8px",
                 }}
               />
             </Link>
             <Link to="/" className="text-white text-decoration-none">
               <span
-                style={{ textShadow: "0 0 12px #00ffff", fontSize: "1.1em" }} // Reduced font size
+                style={{ textShadow: "0 0 12px #00ffff", fontSize: "1.1em" }}
               >
                 {userName || "SU"}
               </span>
@@ -137,12 +132,12 @@ function AppContent() {
             <Nav.Link
               as={Link}
               to="/settings"
-              className="text-white me-2" // Reduced margin
+              className="text-white me-2"
               style={{
-                textShadow: "0 0 6px #00ffff", // Reduced shadow
+                textShadow: "0 0 6px #00ffff",
                 transition: "color 0.4s",
                 color: menuColor,
-                fontSize: "1em", // Reduced font size
+                fontSize: "1em",
               }}
               onMouseEnter={(e) => (e.target.style.color = "#00ffff")}
               onMouseLeave={(e) => (e.target.style.color = menuColor)}
@@ -155,10 +150,10 @@ function AppContent() {
                 style={{
                   backgroundColor: menuColor,
                   borderColor: menuColor,
-                  textShadow: "0 0 6px #00ffff", // Reduced shadow
-                  fontSize: "1em", // Reduced font size
-                  padding: "6px 15px", // Reduced padding
-                  borderRadius: "8px", // Reduced radius
+                  textShadow: "0 0 6px #00ffff",
+                  fontSize: "1em",
+                  padding: "6px 15px",
+                  borderRadius: "8px",
                   transition: "background-color 0.4s",
                 }}
                 onMouseEnter={(e) =>
@@ -175,10 +170,10 @@ function AppContent() {
                 style={{
                   backgroundColor: menuColor,
                   borderColor: menuColor,
-                  textShadow: "0 0 6px #00ffff", // Reduced shadow
-                  fontSize: "1em", // Reduced font size
-                  padding: "6px 15px", // Reduced padding
-                  borderRadius: "8px", // Reduced radius
+                  textShadow: "0 0 6px #00ffff",
+                  fontSize: "1em",
+                  padding: "6px 15px",
+                  borderRadius: "8px",
                   transition: "background-color 0.4s",
                 }}
                 onMouseEnter={(e) =>
@@ -197,22 +192,22 @@ function AppContent() {
           path="/"
           element={
             <Container
-              className="mt-4 text-center" // Reduced margin
+              className="mt-4 text-center"
               style={{
                 background: "linear-gradient(135deg, #1a0033, #440088)",
-                border: `4px solid ${menuColor}`, // Reduced border thickness
-                borderRadius: "12px", // Reduced radius
-                boxShadow: "0 0 20px #00ffff", // Reduced shadow intensity
+                border: `4px solid ${menuColor}`,
+                borderRadius: "12px",
+                boxShadow: "0 0 20px #00ffff",
                 color: "#00ffff",
                 fontFamily: "Orbitron, sans-serif",
-                padding: "20px", // Reduced padding
+                padding: "20px",
               }}
             >
               <h1
-                className="d-flex align-items-center justify-content-center gap-2" // Reduced gap
+                className="d-flex align-items-center justify-content-center gap-2"
                 style={{
-                  textShadow: "0 0 15px #00ffff", // Reduced shadow
-                  fontSize: "2em", // Reduced font size
+                  textShadow: "0 0 15px #00ffff",
+                  fontSize: "2em",
                 }}
               >
                 Welcome to {userName || "SU"}
@@ -220,24 +215,22 @@ function AppContent() {
                   src={logo}
                   alt="SU Logo"
                   style={{
-                    width: "50px", // Reduced size
-                    height: "50px", // Reduced size
-                    border: `2px solid ${menuColor}`, // Reduced border thickness
-                    borderRadius: "8px", // Reduced radius
+                    width: "50px",
+                    height: "50px",
+                    border: `2px solid ${menuColor}`,
+                    borderRadius: "8px",
                   }}
                 />
               </h1>
               <p
                 style={{
-                  textShadow: "0 0 6px #ff00ff", // Reduced shadow
-                  fontSize: "1.1em", // Reduced font size
+                  textShadow: "0 0 6px #ff00ff",
+                  fontSize: "1.1em",
                 }}
               >
                 A decentralized messaging app powered by the SUI blockchain.
               </p>
               <div className="mt-4">
-                {" "}
-                {/* Reduced margin */}
                 <Button
                   as={Link}
                   to="/dashboard"
@@ -246,10 +239,10 @@ function AppContent() {
                   style={{
                     borderColor: menuColor,
                     color: menuColor,
-                    textShadow: "0 0 6px #00ffff", // Reduced shadow
-                    padding: "10px 20px", // Reduced padding
-                    fontSize: "1.1em", // Reduced font size
-                    borderRadius: "8px", // Reduced radius
+                    textShadow: "0 0 6px #00ffff",
+                    padding: "10px 20px",
+                    fontSize: "1.1em",
+                    borderRadius: "8px",
                     transition: "background-color 0.4s",
                   }}
                   onClick={handleDashboardClick}
@@ -281,6 +274,12 @@ function AppContent() {
         show={showWalletModal}
         onHide={() => setShowWalletModal(false)}
         centered
+        style={{
+          maxWidth: "90%", // Responsive width for mobile
+          [`@media (maxWidth: 767px)`]: {
+            width: "90%",
+          },
+        }}
       >
         <Modal.Header
           style={{
@@ -291,8 +290,6 @@ function AppContent() {
           }}
         >
           <Modal.Title style={{ textShadow: "0 0 12px #00ffff" }}>
-            {" "}
-            {/* Reduced shadow */}
             Wallet Required
           </Modal.Title>
         </Modal.Header>
@@ -300,13 +297,36 @@ function AppContent() {
           style={{
             background: "#1a0033",
             color: "#00ffff",
-            textShadow: "0 0 4px #ff00ff", // Reduced shadow
-            fontSize: "1em", // Reduced font size
+            textShadow: "0 0 4px #ff00ff",
+            fontSize: "1em",
           }}
         >
-          {window.innerWidth < 768
-            ? "Please use the WebConnect option to connect your mobile wallet."
-            : "Please connect your wallet to access the Dashboard and enjoy the full SU experience!"}
+          {window.innerWidth < 768 ? (
+            <div>
+              <p>Please select your wallet to connect:</p>
+              <Form.Select
+                value={selectedWallet}
+                onChange={(e) => setSelectedWallet(e.target.value)}
+                style={{
+                  backgroundColor: "#1a0033",
+                  color: "#00ffff",
+                  border: `1px dashed ${menuColor}`,
+                  borderRadius: "5px",
+                  padding: "5px",
+                  marginBottom: "10px",
+                }}
+              >
+                <option value="">Select Wallet</option>
+                <option value="sui">SUI Wallet</option>
+                {/* Removed Phantom Wallet option */}
+              </Form.Select>
+              <p>
+                Connecting will open your wallet app for secure authentication.
+              </p>
+            </div>
+          ) : (
+            "Please connect your wallet to access the Dashboard and enjoy the full SU experience!"
+          )}
         </Modal.Body>
         <Modal.Footer
           style={{
@@ -320,10 +340,10 @@ function AppContent() {
             style={{
               backgroundColor: menuColor,
               borderColor: menuColor,
-              textShadow: "0 0 6px #00ffff", // Reduced shadow
-              padding: "6px 15px", // Reduced padding
-              fontSize: "1em", // Reduced font size
-              borderRadius: "8px", // Reduced radius
+              textShadow: "0 0 6px #00ffff",
+              padding: "6px 15px",
+              fontSize: "1em",
+              borderRadius: "8px",
               transition: "background-color 0.4s",
             }}
             onMouseEnter={(e) => (e.target.style.backgroundColor = "#00ffff")}
@@ -331,23 +351,23 @@ function AppContent() {
           >
             Close
           </Button>
-          {window.innerWidth < 768 && (
+          {window.innerWidth < 768 && selectedWallet && (
             <Button
               variant="primary"
               onClick={handleWebConnect}
               style={{
                 backgroundColor: menuColor,
                 borderColor: menuColor,
-                textShadow: "0 0 6px #00ffff", // Reduced shadow
-                padding: "6px 15px", // Reduced padding
-                fontSize: "1em", // Reduced font size
-                borderRadius: "8px", // Reduced radius
+                textShadow: "0 0 6px #00ffff",
+                padding: "6px 15px",
+                fontSize: "1em",
+                borderRadius: "8px",
                 transition: "background-color 0.4s",
               }}
               onMouseEnter={(e) => (e.target.style.backgroundColor = "#00ffff")}
               onMouseLeave={(e) => (e.target.style.backgroundColor = menuColor)}
             >
-              WebConnect
+              Connect
             </Button>
           )}
         </Modal.Footer>
