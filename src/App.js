@@ -2,11 +2,8 @@ import React, { useState, useEffect } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
 import { Container, Navbar, Nav, Button, Modal, Form } from "react-bootstrap";
-import {
-  WalletKitProvider,
-  useWalletKit,
-  ConnectButton,
-} from "@mysten/wallet-kit"; // Using official Mysten kit
+import WalletConnect from "@walletconnect/client"; // WalletConnect client
+import { buildApprovedNamespaces } from "@walletconnect/utils";
 import { SuiClient } from "@mysten/sui.js/client";
 import {
   BrowserRouter as Router,
@@ -24,7 +21,7 @@ function AppContent() {
   const [userName, setUserName] = useState("");
   const [menuColor, setMenuColor] = useState("#ff00ff"); // Default to pink from Chat.js
   const [showWalletModal, setShowWalletModal] = useState(false);
-  const { isConnected, currentAccount, connect } = useWalletKit();
+  const [connector, setConnector] = useState(null); // WalletConnect connector
   const [selectedWallet, setSelectedWallet] = useState("");
 
   useEffect(() => {
@@ -32,23 +29,27 @@ function AppContent() {
       url: "https://fullnode.testnet.sui.io", // Testnet for local CORS
     });
     const fetchUserName = async () => {
-      if (isConnected && currentAccount) {
-        const objects = await client.getOwnedObjects({
-          owner: currentAccount.address,
-          options: { showType: true, showContent: true },
-        });
-        const userObject = objects.data.find((obj) =>
-          obj.data.type.includes(
-            "0x3f455d572c2b923918a0623bef2e075b9870dc650c2f9e164aa2ea5693506d80::su_messaging::User"
-          )
-        );
-        setUserName(
-          userObject?.data.content.fields.display_name
-            ? new TextDecoder().decode(
-                new Uint8Array(userObject.data.content.fields.display_name)
-              )
-            : currentAccount.address.slice(0, 6) + "..."
-        );
+      // Placeholder for wallet connection state; update with actual logic
+      if (connector && connector.connected) {
+        const accounts = connector.accounts;
+        if (accounts.length > 0) {
+          const objects = await client.getOwnedObjects({
+            owner: accounts[0],
+            options: { showType: true, showContent: true },
+          });
+          const userObject = objects.data.find((obj) =>
+            obj.data.type.includes(
+              "0x3f455d572c2b923918a0623bef2e075b9870dc650c2f9e164aa2ea5693506d80::su_messaging::User"
+            )
+          );
+          setUserName(
+            userObject?.data.content.fields.display_name
+              ? new TextDecoder().decode(
+                  new Uint8Array(userObject.data.content.fields.display_name)
+                )
+              : accounts[0].slice(0, 6) + "..."
+          );
+        }
       }
     };
     fetchUserName();
@@ -64,10 +65,10 @@ function AppContent() {
       setMenuColor(`rgb(${r}, ${g}, ${b})`);
     }, 100);
     return () => clearInterval(interval);
-  }, [isConnected, currentAccount]);
+  }, [connector]);
 
   const handleDashboardClick = (e) => {
-    if (!isConnected) {
+    if (!connector || !connector.connected) {
       e.preventDefault();
       setShowWalletModal(true);
     }
@@ -77,306 +78,336 @@ function AppContent() {
     if (window.innerWidth < 768 && selectedWallet) {
       if (selectedWallet === "sui") {
         try {
-          await connect(); // Initiate connection, targeting Slush app
-          if (isConnected && currentAccount) {
-            setShowWalletModal(false); // Close modal on success
-            window.location.href = "https://su-messaging.netlify.app"; // Redirect back to site
+          const connector = new WalletConnect({
+            bridge: "https://bridge.walletconnect.org", // WalletConnect bridge
+            qrcode: true,
+          });
+
+          // Set up namespaces for Sui
+          const approvedNamespaces = buildApprovedNamespaces({
+            chains: ["sui:testnet"], // Match your network
+            methods: ["sui_signTransactionBlock", "sui_signMessage"],
+            events: ["chainChanged", "accountsChanged"],
+          });
+
+          await connector.createSession({
+            namespaces: approvedNamespaces,
+          });
+
+          // Generate and display URI for wallet to connect
+          const uri = connector.uri;
+          connector.on("connect", (error, payload) => {
+            if (error) {
+              throw error;
+            }
+            setConnector(connector);
+            setShowWalletModal(false);
+            window.location.href = "https://su-messaging.netlify.app"; // Redirect on connect
+          });
+
+          // Open Slush app or prompt QR code
+          if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+            window.location.href = uri; // Attempt to open app with URI
+            setTimeout(() => {
+              if (!connector.connected) {
+                window.location.href =
+                  "https://apps.apple.com/us/app/slush-a-sui-wallet/id6476572140"; // Fallback to App Store
+              }
+            }, 2000); // 2-second timeout
           }
         } catch (error) {
           console.error("Connection failed:", error);
-          // Check if Slush app is installed; redirect to App Store if not
+          // Stay on page or fallback only if app not installed
           if (
             /iPhone|iPad|iPod/i.test(navigator.userAgent) &&
-            !isSlushInstalled()
+            !connector?.connected
           ) {
             window.location.href =
               "https://apps.apple.com/us/app/slush-a-sui-wallet/id6476572140";
-          } else {
-            // Avoid website redirect; log error and stay on page
-            console.log("Please ensure Slush app is installed and try again.");
           }
         }
       }
     }
   };
 
-  // Check if Slush app is installed (iOS-specific heuristic)
-  const isSlushInstalled = () => {
-    // Attempt a URI scheme ping (hypothetical, adjust if official scheme is found)
-    const iframe = document.createElement("iframe");
-    iframe.src = "slush://connect";
-    iframe.style.display = "none";
-    document.body.appendChild(iframe);
-    let installed = false;
-    setTimeout(() => {
-      document.body.removeChild(iframe);
-      // If no error (e.g., app launches), assume installed
-      installed = true;
-    }, 1000); // 1-second timeout
-    return installed;
-  };
-
   // Simple mobile detection based on window width (e.g., < 768px for mobile)
   const isMobile = window.innerWidth < 768;
 
   return (
-    <WalletKitProvider>
-      <div>
-        <Navbar
-          bg="dark"
-          variant="dark"
-          expand="lg"
-          style={{
-            position: "sticky",
-            top: 0,
-            zIndex: 1000,
-            border: `4px solid ${menuColor}`,
-            borderRadius: "12px",
-            boxShadow: "0 0 20px rgba(0, 255, 255, 0.7)",
-            fontFamily: "Orbitron, sans-serif",
-            color: "#00ffff",
-            background: "linear-gradient(135deg, #1a0033, #440088)",
-            padding: "8px 15px",
-          }}
-        >
-          <Container>
-            <Navbar.Brand className="d-flex align-items-center gap-2">
-              <Link to="/">
+    <div>
+      <Navbar
+        bg="dark"
+        variant="dark"
+        expand="lg"
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 1000,
+          border: `4px solid ${menuColor}`,
+          borderRadius: "12px",
+          boxShadow: "0 0 20px rgba(0, 255, 255, 0.7)",
+          fontFamily: "Orbitron, sans-serif",
+          color: "#00ffff",
+          background: "linear-gradient(135deg, #1a0033, #440088)",
+          padding: "8px 15px",
+        }}
+      >
+        <Container>
+          <Navbar.Brand className="d-flex align-items-center gap-2">
+            <Link to="/">
+              <img
+                src={logo}
+                alt="SU Logo"
+                style={{
+                  width: "40px",
+                  height: "40px",
+                  border: `2px solid ${menuColor}`,
+                  borderRadius: "8px",
+                }}
+              />
+            </Link>
+            <Link to="/" className="text-white text-decoration-none">
+              <span
+                style={{ textShadow: "0 0 12px #00ffff", fontSize: "1.1em" }}
+              >
+                {userName || "SU"}
+              </span>
+            </Link>
+          </Navbar.Brand>
+          <Nav className="ms-auto d-flex align-items-center">
+            <Nav.Link
+              as={Link}
+              to="/settings"
+              className="text-white me-2"
+              style={{
+                textShadow: "0 0 6px #00ffff",
+                transition: "color 0.4s",
+                color: menuColor,
+                fontSize: "1em",
+              }}
+              onMouseEnter={(e) => (e.target.style.color = "#00ffff")}
+              onMouseLeave={(e) => (e.target.style.color = menuColor)}
+            >
+              Settings
+            </Nav.Link>
+            {isMobile ? (
+              <Button
+                onClick={() => setShowWalletModal(true)}
+                style={{
+                  backgroundColor: menuColor,
+                  borderColor: menuColor,
+                  textShadow: "0 0 6px #00ffff",
+                  fontSize: "1em",
+                  padding: "6px 15px",
+                  borderRadius: "8px",
+                  transition: "background-color 0.4s",
+                }}
+                onMouseEnter={(e) =>
+                  (e.target.style.backgroundColor = "#00ffff")
+                }
+                onMouseLeave={(e) =>
+                  (e.target.style.backgroundColor = menuColor)
+                }
+              >
+                Connect Wallet
+              </Button>
+            ) : (
+              <ConnectButton
+                style={{
+                  backgroundColor: menuColor,
+                  borderColor: menuColor,
+                  textShadow: "0 0 6px #00ffff",
+                  fontSize: "1em",
+                  padding: "6px 15px",
+                  borderRadius: "8px",
+                  transition: "background-color 0.4s",
+                }}
+                onMouseEnter={(e) =>
+                  (e.target.style.backgroundColor = "#00ffff")
+                }
+                onMouseLeave={(e) =>
+                  (e.target.style.backgroundColor = menuColor)
+                }
+              />
+            )}
+          </Nav>
+        </Container>
+      </Navbar>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <Container
+              className="mt-4 text-center"
+              style={{
+                background: "linear-gradient(135deg, #1a0033, #440088)",
+                border: `4px solid ${menuColor}`,
+                borderRadius: "12px",
+                boxShadow: "0 0 20px #00ffff",
+                color: "#00ffff",
+                fontFamily: "Orbitron, sans-serif",
+                padding: "20px",
+              }}
+            >
+              <h1
+                className="d-flex align-items-center justify-content-center gap-2"
+                style={{
+                  textShadow: "0 0 15px #00ffff",
+                  fontSize: "2em",
+                }}
+              >
+                Welcome to {userName || "SU"}
                 <img
                   src={logo}
                   alt="SU Logo"
                   style={{
-                    width: "40px",
-                    height: "40px",
+                    width: "50px",
+                    height: "50px",
                     border: `2px solid ${menuColor}`,
                     borderRadius: "8px",
                   }}
                 />
-              </Link>
-              <Link to="/" className="text-white text-decoration-none">
-                <span
-                  style={{ textShadow: "0 0 12px #00ffff", fontSize: "1.1em" }}
-                >
-                  {userName || "SU"}
-                </span>
-              </Link>
-            </Navbar.Brand>
-            <Nav className="ms-auto d-flex align-items-center">
-              <Nav.Link
-                as={Link}
-                to="/settings"
-                className="text-white me-2"
+              </h1>
+              <p
                 style={{
-                  textShadow: "0 0 6px #00ffff",
-                  transition: "color 0.4s",
-                  color: menuColor,
-                  fontSize: "1em",
+                  textShadow: "0 0 6px #ff00ff",
+                  fontSize: "1.1em",
                 }}
-                onMouseEnter={(e) => (e.target.style.color = "#00ffff")}
-                onMouseLeave={(e) => (e.target.style.color = menuColor)}
               >
-                Settings
-              </Nav.Link>
-              {isMobile ? (
+                A decentralized messaging app powered by the SUI blockchain.
+              </p>
+              <div className="mt-4">
                 <Button
-                  onClick={() => setShowWalletModal(true)}
+                  as={Link}
+                  to="/dashboard"
+                  variant="outline-primary"
+                  className="mx-2"
                   style={{
-                    backgroundColor: menuColor,
                     borderColor: menuColor,
+                    color: menuColor,
                     textShadow: "0 0 6px #00ffff",
-                    fontSize: "1em",
-                    padding: "6px 15px",
-                    borderRadius: "8px",
-                    transition: "background-color 0.4s",
-                  }}
-                  onMouseEnter={(e) =>
-                    (e.target.style.backgroundColor = "#00ffff")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.target.style.backgroundColor = menuColor)
-                  }
-                >
-                  Connect Wallet
-                </Button>
-              ) : (
-                <ConnectButton
-                  style={{
-                    backgroundColor: menuColor,
-                    borderColor: menuColor,
-                    textShadow: "0 0 6px #00ffff",
-                    fontSize: "1em",
-                    padding: "6px 15px",
-                    borderRadius: "8px",
-                    transition: "background-color 0.4s",
-                  }}
-                  onMouseEnter={(e) =>
-                    (e.target.style.backgroundColor = "#00ffff")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.target.style.backgroundColor = menuColor)
-                  }
-                />
-              )}
-            </Nav>
-          </Container>
-        </Navbar>
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <Container
-                className="mt-4 text-center"
-                style={{
-                  background: "linear-gradient(135deg, #1a0033, #440088)",
-                  border: `4px solid ${menuColor}`,
-                  borderRadius: "12px",
-                  boxShadow: "0 0 20px #00ffff",
-                  color: "#00ffff",
-                  fontFamily: "Orbitron, sans-serif",
-                  padding: "20px",
-                }}
-              >
-                <h1
-                  className="d-flex align-items-center justify-content-center gap-2"
-                  style={{
-                    textShadow: "0 0 15px #00ffff",
-                    fontSize: "2em",
-                  }}
-                >
-                  Welcome to {userName || "SU"}
-                  <img
-                    src={logo}
-                    alt="SU Logo"
-                    style={{
-                      width: "50px",
-                      height: "50px",
-                      border: `2px solid ${menuColor}`,
-                      borderRadius: "8px",
-                    }}
-                  />
-                </h1>
-                <p
-                  style={{
-                    textShadow: "0 0 6px #ff00ff",
+                    padding: "10px 20px",
                     fontSize: "1.1em",
+                    borderRadius: "8px",
+                    transition: "background-color 0.4s",
                   }}
+                  onClick={handleDashboardClick}
+                  onMouseEnter={(e) =>
+                    (e.target.style.backgroundColor = "#00ffff")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.target.style.backgroundColor = "transparent")
+                  }
                 >
-                  A decentralized messaging app powered by the SUI blockchain.
-                </p>
-                <div className="mt-4">
-                  <Button
-                    as={Link}
-                    to="/dashboard"
-                    variant="outline-primary"
-                    className="mx-2"
-                    style={{
-                      borderColor: menuColor,
-                      color: menuColor,
-                      textShadow: "0 0 6px #00ffff",
-                      padding: "10px 20px",
-                      fontSize: "1.1em",
-                      borderRadius: "8px",
-                      transition: "background-color 0.4s",
-                    }}
-                    onClick={handleDashboardClick}
-                    onMouseEnter={(e) =>
-                      (e.target.style.backgroundColor = "#00ffff")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.target.style.backgroundColor = "transparent")
-                    }
-                  >
-                    Go to Dashboard
-                  </Button>
-                </div>
-              </Container>
-            }
-          />
-          <Route
-            path="/dashboard"
-            element={isConnected ? <Dashboard /> : <Navigate to="/" replace />}
-          />
-          <Route path="/chat/:id" element={<Chat />} />
-          <Route
-            path="/settings"
-            element={<Settings setMenuColor={setMenuColor} />}
-          />
-        </Routes>
+                  Go to Dashboard
+                </Button>
+              </div>
+            </Container>
+          }
+        />
+        <Route
+          path="/dashboard"
+          element={isConnected ? <Dashboard /> : <Navigate to="/" replace />}
+        />
+        <Route path="/chat/:id" element={<Chat />} />
+        <Route
+          path="/settings"
+          element={<Settings setMenuColor={setMenuColor} />}
+        />
+      </Routes>
 
-        <Modal
-          show={showWalletModal}
-          onHide={() => setShowWalletModal(false)}
-          centered
+      <Modal
+        show={showWalletModal}
+        onHide={() => setShowWalletModal(false)}
+        centered
+        style={{
+          maxWidth: "90%",
+          [`@media (maxWidth: 767px)`]: {
+            width: "90%",
+          },
+        }}
+      >
+        <Modal.Header
           style={{
-            maxWidth: "90%",
-            [`@media (maxWidth: 767px)`]: {
-              width: "90%",
-            },
+            background: "linear-gradient(135deg, #1a0033, #440088)",
+            borderBottom: `2px solid ${menuColor}`,
+            color: "#00ffff",
+            fontFamily: "Orbitron, sans-serif",
           }}
         >
-          <Modal.Header
-            style={{
-              background: "linear-gradient(135deg, #1a0033, #440088)",
-              borderBottom: `2px solid ${menuColor}`,
-              color: "#00ffff",
-              fontFamily: "Orbitron, sans-serif",
-            }}
-          >
-            <Modal.Title style={{ textShadow: "0 0 12px #00ffff" }}>
-              Wallet Required
-            </Modal.Title>
-          </Modal.Header>
-          <Modal.Body
-            style={{
-              background: "#1a0033",
-              color: "#00ffff",
-              textShadow: "0 0 4px #ff00ff",
-              fontSize: "1em",
-            }}
-          >
-            {window.innerWidth < 768 ? (
-              <div>
-                <p>Please select your wallet to connect:</p>
-                <Form.Select
-                  value={selectedWallet}
-                  onChange={(e) => setSelectedWallet(e.target.value)}
-                  style={{
-                    backgroundColor: "#1a0033",
-                    color: "#00ffff",
-                    border: `1px dashed ${menuColor}`,
-                    borderRadius: "5px",
-                    padding: "5px",
-                    marginBottom: "10px",
-                  }}
+          <Modal.Title style={{ textShadow: "0 0 12px #00ffff" }}>
+            Wallet Required
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body
+          style={{
+            background: "#1a0033",
+            color: "#00ffff",
+            textShadow: "0 0 4px #ff00ff",
+            fontSize: "1em",
+          }}
+        >
+          {window.innerWidth < 768 ? (
+            <div>
+              <p>Please select your wallet to connect:</p>
+              <Form.Select
+                value={selectedWallet}
+                onChange={(e) => setSelectedWallet(e.target.value)}
+                style={{
+                  backgroundColor: "#1a0033",
+                  color: "#00ffff",
+                  border: `1px dashed ${menuColor}`,
+                  borderRadius: "5px",
+                  padding: "5px",
+                  marginBottom: "10px",
+                }}
+              >
+                <option value="">Select Wallet</option>
+                <option value="sui">SUI Wallet (Slush)</option>
+              </Form.Select>
+              <p>
+                This will open the Slush Wallet app for connection. After
+                signing the request, you’ll be redirected back to{" "}
+                <a
+                  href="https://su-messaging.netlify.app"
+                  style={{ color: "#00ffff", textDecoration: "underline" }}
                 >
-                  <option value="">Select Wallet</option>
-                  <option value="sui">SUI Wallet (Slush)</option>
-                </Form.Select>
-                <p>
-                  This will open the Slush Wallet app for connection. After
-                  signing the request, you’ll be redirected back to{" "}
-                  <a
-                    href="https://su-messaging.netlify.app"
-                    style={{ color: "#00ffff", textDecoration: "underline" }}
-                  >
-                    https://su-messaging.netlify.app
-                  </a>{" "}
-                  signed in.
-                </p>
-              </div>
-            ) : (
-              "Please connect your wallet to access the Dashboard and enjoy the full SU experience!"
-            )}
-          </Modal.Body>
-          <Modal.Footer
+                  https://su-messaging.netlify.app
+                </a>{" "}
+                signed in.
+              </p>
+            </div>
+          ) : (
+            "Please connect your wallet to access the Dashboard and enjoy the full SU experience!"
+          )}
+        </Modal.Body>
+        <Modal.Footer
+          style={{
+            background: "linear-gradient(135deg, #1a0033, #440088)",
+            borderTop: `2px solid ${menuColor}`,
+          }}
+        >
+          <Button
+            variant="primary"
+            onClick={() => setShowWalletModal(false)}
             style={{
-              background: "linear-gradient(135deg, #1a0033, #440088)",
-              borderTop: `2px solid ${menuColor}`,
+              backgroundColor: menuColor,
+              borderColor: menuColor,
+              textShadow: "0 0 6px #00ffff",
+              padding: "6px 15px",
+              fontSize: "1em",
+              borderRadius: "8px",
+              transition: "background-color 0.4s",
             }}
+            onMouseEnter={(e) => (e.target.style.backgroundColor = "#00ffff")}
+            onMouseLeave={(e) => (e.target.style.backgroundColor = menuColor)}
           >
+            Close
+          </Button>
+          {window.innerWidth < 768 && selectedWallet && (
             <Button
               variant="primary"
-              onClick={() => setShowWalletModal(false)}
+              onClick={handleWebConnect}
               style={{
                 backgroundColor: menuColor,
                 borderColor: menuColor,
@@ -389,35 +420,12 @@ function AppContent() {
               onMouseEnter={(e) => (e.target.style.backgroundColor = "#00ffff")}
               onMouseLeave={(e) => (e.target.style.backgroundColor = menuColor)}
             >
-              Close
+              Connect
             </Button>
-            {window.innerWidth < 768 && selectedWallet && (
-              <Button
-                variant="primary"
-                onClick={handleWebConnect}
-                style={{
-                  backgroundColor: menuColor,
-                  borderColor: menuColor,
-                  textShadow: "0 0 6px #00ffff",
-                  padding: "6px 15px",
-                  fontSize: "1em",
-                  borderRadius: "8px",
-                  transition: "background-color 0.4s",
-                }}
-                onMouseEnter={(e) =>
-                  (e.target.style.backgroundColor = "#00ffff")
-                }
-                onMouseLeave={(e) =>
-                  (e.target.style.backgroundColor = menuColor)
-                }
-              >
-                Connect
-              </Button>
-            )}
-          </Modal.Footer>
-        </Modal>
-      </div>
-    </WalletKitProvider>
+          )}
+        </Modal.Footer>
+      </Modal>
+    </div>
   );
 }
 
