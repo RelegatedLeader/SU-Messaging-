@@ -430,9 +430,7 @@ function AppContent() {
 function App() {
   return (
     <Router>
-      <WalletKitProvider>
-        <AppContent />
-      </WalletKitProvider>
+      <AppContent />
     </Router>
   );
 }
