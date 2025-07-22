@@ -11,7 +11,7 @@ import {
   WalletProvider,
   defineSlushWallet,
   useWallet,
-} from "@suiet/wallet-kit"; // Corrected imports
+} from "@suiet/wallet-kit";
 import { SuiClient } from "@mysten/sui.js/client";
 import {
   BrowserRouter as Router,
@@ -97,11 +97,26 @@ function AppContent() {
           }
         } catch (error) {
           console.error("Connection failed:", error);
-          // Fallback: Open Slush app manually if integration fails
-          window.location.href = "https://slush.app"; // Direct to Slush website
+          // Check if Slush app is installed; redirect to App Store if not
+          if (
+            /iPhone|iPad|iPod/i.test(navigator.userAgent) &&
+            !isSlushInstalled()
+          ) {
+            window.location.href =
+              "https://apps.apple.com/us/app/slush-a-sui-wallet/id6476572140";
+          } else {
+            window.location.href = "https://slush.app"; // Fallback to website
+          }
         }
       }
     }
+  };
+
+  // Simple check for Slush app installation (iOS-specific heuristic)
+  const isSlushInstalled = () => {
+    // This is a basic check; actual detection requires a custom URI scheme ping
+    // For now, assume installed if no redirect to App Store occurs
+    return window.location.href.indexOf("itms-appss") === -1;
   };
 
   // Simple mobile detection based on window width (e.g., < 768px for mobile)
