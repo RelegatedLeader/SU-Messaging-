@@ -28,6 +28,7 @@ import Settings from "./Settings";
 // Define Slush Wallet configuration
 const slushWalletConfig = defineSlushWallet({
   appName: "SU-Messaging", // Your dApp name, displayed in Slush
+  network: "testnet", // Match the SuiClient network
 });
 
 function AppContent() {
@@ -89,7 +90,7 @@ function AppContent() {
       if (selectedWallet === "sui") {
         try {
           await select("slush-wallet"); // Select Slush wallet
-          await connect(); // Initiate connection, triggering in-app flow
+          await connect(); // Initiate connection, prompting signature in Slush app
           if (isConnected && currentAccount) {
             setShowWalletModal(false); // Close modal on success
             window.location.href = "https://su-messaging.netlify.app"; // Redirect back to site
@@ -342,8 +343,8 @@ function AppContent() {
                   <option value="sui">SUI Wallet (Slush)</option>
                 </Form.Select>
                 <p>
-                  This will open the Slush Wallet app. After authentication,
-                  you’ll be redirected back to{" "}
+                  This will open the Slush Wallet app for connection. After
+                  signing the request, you’ll be redirected back to{" "}
                   <a
                     href="https://su-messaging.netlify.app"
                     style={{ color: "#00ffff", textDecoration: "underline" }}
