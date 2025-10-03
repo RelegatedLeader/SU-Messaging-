@@ -3,11 +3,15 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
 import { Container, Navbar, Nav, Button, Modal, Form } from "react-bootstrap";
 import {
-  WalletKitProvider,
-  useWalletKit,
+  SuiClientProvider,
+  WalletProvider,
+  useCurrentAccount,
+  useCurrentWallet,
+  useConnectWallet,
   ConnectButton,
-} from "@mysten/wallet-kit"; // Official Mysten kit
-import { SuiClient } from "@mysten/sui.js/client";
+} from "@mysten/dapp-kit"; // Updated to use the new dapp-kit
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { SuiClient } from "@mysten/sui/client";
 import {
   BrowserRouter as Router,
   Routes,
@@ -24,7 +28,10 @@ function AppContent() {
   const [userName, setUserName] = useState("");
   const [menuColor, setMenuColor] = useState("#ff00ff"); // Default to pink from Chat.js
   const [showWalletModal, setShowWalletModal] = useState(false);
-  const { isConnected, currentAccount, connect } = useWalletKit();
+  const connect = useConnectWallet();
+  const currentAccount = useCurrentAccount();
+  const currentWallet = useCurrentWallet();
+  const isConnected = !!currentAccount;
   const [selectedWallet, setSelectedWallet] = useState("");
 
   useEffect(() => {
@@ -98,25 +105,24 @@ function AppContent() {
   const isMobile = window.innerWidth < 768;
 
   return (
-    <WalletKitProvider>
-      <div>
-        <Navbar
-          bg="dark"
-          variant="dark"
-          expand="lg"
-          style={{
-            position: "sticky",
-            top: 0,
-            zIndex: 1000,
-            border: `4px solid ${menuColor}`,
-            borderRadius: "12px",
-            boxShadow: "0 0 20px rgba(0, 255, 255, 0.7)",
-            fontFamily: "Orbitron, sans-serif",
-            color: "#00ffff",
-            background: "linear-gradient(135deg, #1a0033, #440088)",
-            padding: "8px 15px",
-          }}
-        >
+    <div>
+      <Navbar
+        bg="dark"
+        variant="dark"
+        expand="lg"
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 1000,
+          border: `4px solid ${menuColor}`,
+          borderRadius: "12px",
+          boxShadow: "0 0 20px rgba(0, 255, 255, 0.7)",
+          fontFamily: "Orbitron, sans-serif",
+          color: "#00ffff",
+          background: "linear-gradient(135deg, #1a0033, #440088)",
+          padding: "8px 15px",
+        }}
+      >
           <Container>
             <Navbar.Brand className="d-flex align-items-center gap-2">
               <Link to="/">
@@ -395,17 +401,22 @@ function AppContent() {
           </Modal.Footer>
         </Modal>
       </div>
-    </WalletKitProvider>
   );
 }
 
 function App() {
+  const queryClient = new QueryClient();
+
   return (
-    <Router>
-      <WalletKitProvider>
-        <AppContent />
-      </WalletKitProvider>
-    </Router>
+    <QueryClientProvider client={queryClient}>
+      <SuiClientProvider>
+        <WalletProvider>
+          <Router>
+            <AppContent />
+          </Router>
+        </WalletProvider>
+      </SuiClientProvider>
+    </QueryClientProvider>
   );
 }
 

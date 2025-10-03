@@ -15,17 +15,18 @@ import {
   Alert,
 } from "react-bootstrap";
 import { useParams, useNavigate } from "react-router-dom";
-import { TransactionBlock } from "@mysten/sui.js/transactions";
-import { useWalletKit } from "@mysten/wallet-kit";
-import { SuiClient } from "@mysten/sui.js/client";
+import { Transaction } from "@mysten/sui/transactions";
+import { useCurrentAccount, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
+import { SuiClient } from "@mysten/sui/client";
 import * as bcs from "@mysten/bcs";
 import Long from "long";
 
 function Chat() {
   const { id: recipientAddress } = useParams();
   const navigate = useNavigate();
-  const { signAndExecuteTransactionBlock, isConnected, currentAccount } =
-    useWalletKit();
+  const currentAccount = useCurrentAccount();
+  const isConnected = !!currentAccount;
+  const { mutate: signAndExecuteTransactionBlock } = useSignAndExecuteTransaction();
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const [sendStatus, setSendStatus] = useState(false);
@@ -220,7 +221,7 @@ function Chat() {
       writer.writeVec(content, (w, item) => w.write8(item));
       const bcsBytes = writer.toBytes();
 
-      const tx = new TransactionBlock();
+      const tx = new Transaction();
       tx.moveCall({
         target: `${packageId}::message::send_message`,
         arguments: [
@@ -231,7 +232,7 @@ function Chat() {
       });
 
       await signAndExecuteTransactionBlock({
-        transactionBlock: tx,
+        transaction: tx,
         options: { showEffects: true },
         account: currentAccount,
       });

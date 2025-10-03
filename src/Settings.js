@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { Container, Form, Button, Alert, Modal } from "react-bootstrap";
-import { TransactionBlock } from "@mysten/sui.js/transactions";
-import { useWalletKit } from "@mysten/wallet-kit";
-import { SuiClient } from "@mysten/sui.js/client";
+import { Transaction } from "@mysten/sui/transactions";
+import { useCurrentAccount, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
+import { SuiClient } from "@mysten/sui/client";
 
 function Settings() {
-  const { signAndExecuteTransactionBlock, isConnected, currentAccount } =
-    useWalletKit();
+  const currentAccount = useCurrentAccount();
+  const isConnected = !!currentAccount;
+  const { mutate: signAndExecuteTransactionBlock } = useSignAndExecuteTransaction();
   const [displayName, setDisplayName] = useState("");
   const [currentName, setCurrentName] = useState("");
   const [registrationStatus, setRegistrationStatus] = useState(null);
@@ -57,7 +58,7 @@ function Settings() {
     setRegistrationStatus(null);
 
     try {
-      const tx = new TransactionBlock();
+      const tx = new Transaction();
       const packageId =
         "0x3c7d131d38c117cbc75e3a8349ea3c841776ad6c6168e9590ba1fc4478018799";
 
@@ -67,7 +68,7 @@ function Settings() {
       });
 
       const result = await signAndExecuteTransactionBlock({
-        transactionBlock: tx,
+        transaction: tx,
         options: disableWalletPopup
           ? { showEffects: true }
           : { showEffects: true, showObjectChanges: true },
@@ -103,7 +104,7 @@ function Settings() {
     setSubscriptionStatus(null);
 
     try {
-      const tx = new TransactionBlock();
+      const tx = new Transaction();
       const subscriptionAmount = 0.5; // Approx. $10 worth of SUI (adjust based on current price)
       const donation = parseFloat(donationAmount) || 0;
 
@@ -128,7 +129,7 @@ function Settings() {
       }
 
       const result = await signAndExecuteTransactionBlock({
-        transactionBlock: tx,
+        transaction: tx,
         options: { showEffects: true },
       });
 

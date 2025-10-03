@@ -8,8 +8,8 @@ import {
   InputGroup,
 } from "react-bootstrap";
 import { useNavigate, Link } from "react-router-dom";
-import { useWalletKit } from "@mysten/wallet-kit";
-import { SuiClient } from "@mysten/sui.js/client";
+import { useCurrentAccount } from "@mysten/dapp-kit";
+import { SuiClient } from "@mysten/sui/client";
 import Long from "long"; // Added for timestamp handling
 
 function Dashboard() {
@@ -19,7 +19,8 @@ function Dashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [menuColor, setMenuColor] = useState("#ff00ff"); // Sync with App.js default
   const navigate = useNavigate();
-  const { isConnected, currentAccount } = useWalletKit();
+  const currentAccount = useCurrentAccount();
+  const isConnected = !!currentAccount;
   const client = useMemo(
     () => new SuiClient({ url: "https://fullnode.mainnet.sui.io:443" }),
     []
