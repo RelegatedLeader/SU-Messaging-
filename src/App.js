@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
 import { Container, Navbar, Nav, Button, Modal, Form } from "react-bootstrap";
-import { useCurrentWallet, useConnectWallet, useWallets, ConnectButton } from "@mysten/dapp-kit";
+import { useCurrentWallet, useConnectWallet, useWallets, useDisconnectWallet, ConnectButton } from "@mysten/dapp-kit";
 import { SuiClient } from "@mysten/sui.js/client";
 import {
   BrowserRouter as Router,
@@ -20,6 +20,7 @@ function AppContent() {
   const { currentAccount, isConnected } = useCurrentWallet();
   const { mutate: connect } = useConnectWallet();
   const wallets = useWallets();
+  const { mutate: disconnect } = useDisconnectWallet();
   const [userName, setUserName] = useState("");
   const [menuColor, setMenuColor] = useState("#ff00ff"); // Default to pink from Chat.js
   const [showWalletModal, setShowWalletModal] = useState(false);
@@ -167,10 +168,12 @@ function AppContent() {
               </Button>
             ) : (
               <button
-                onClick={() => setShowWalletSelect(true)}
+                onClick={() => isConnected ? disconnect() : setShowWalletSelect(true)}
                 style={{
-                  background: "linear-gradient(135deg, #00ffff 0%, #0080ff 50%, #8000ff 100%)",
-                  border: "2px solid rgba(0, 255, 255, 0.5)",
+                  background: isConnected 
+                    ? "linear-gradient(135deg, #00aa00 0%, #008800 50%, #006600 100%)"
+                    : "linear-gradient(135deg, #00ffff 0%, #0080ff 50%, #8000ff 100%)",
+                  border: `2px solid ${isConnected ? "rgba(0, 170, 0, 0.5)" : "rgba(0, 255, 255, 0.5)"}`,
                   color: "#ffffff",
                   fontSize: "0.9rem",
                   fontWeight: "600",
@@ -181,23 +184,38 @@ function AppContent() {
                   letterSpacing: "0.5px",
                   cursor: "pointer",
                   transition: "all 0.3s ease",
-                  boxShadow: "0 4px 15px rgba(0, 255, 255, 0.2), 0 0 30px rgba(0, 255, 255, 0.1)",
+                  boxShadow: `0 4px 15px ${isConnected ? "rgba(0, 170, 0, 0.2)" : "rgba(0, 255, 255, 0.2)"}, 0 0 30px ${isConnected ? "rgba(0, 170, 0, 0.1)" : "rgba(0, 255, 255, 0.1)"}`,
                   textShadow: "0 0 8px rgba(255, 255, 255, 0.8)",
                   position: "relative",
                   overflow: "hidden",
+                  minWidth: isConnected ? "140px" : "120px",
                 }}
                 onMouseEnter={(e) => {
                   e.target.style.transform = "translateY(-1px) scale(1.02)";
-                  e.target.style.boxShadow = "0 6px 20px rgba(0, 255, 255, 0.3), 0 0 40px rgba(0, 255, 255, 0.2)";
-                  e.target.style.background = "linear-gradient(135deg, #00cccc 0%, #0066cc 50%, #6600cc 100%)";
+                  e.target.style.boxShadow = `0 6px 20px ${isConnected ? "rgba(0, 170, 0, 0.3)" : "rgba(0, 255, 255, 0.3)"}, 0 0 40px ${isConnected ? "rgba(0, 170, 0, 0.2)" : "rgba(0, 255, 255, 0.2)"}`;
+                  e.target.style.background = isConnected 
+                    ? "linear-gradient(135deg, #008800 0%, #006600 50%, #004400 100%)"
+                    : "linear-gradient(135deg, #00cccc 0%, #0066cc 50%, #6600cc 100%)";
                 }}
                 onMouseLeave={(e) => {
                   e.target.style.transform = "translateY(0) scale(1)";
-                  e.target.style.boxShadow = "0 4px 15px rgba(0, 255, 255, 0.2), 0 0 30px rgba(0, 255, 255, 0.1)";
-                  e.target.style.background = "linear-gradient(135deg, #00ffff 0%, #0080ff 50%, #8000ff 100%)";
+                  e.target.style.boxShadow = `0 4px 15px ${isConnected ? "rgba(0, 170, 0, 0.2)" : "rgba(0, 255, 255, 0.2)"}, 0 0 30px ${isConnected ? "rgba(0, 170, 0, 0.1)" : "rgba(0, 255, 255, 0.1)"}`;
+                  e.target.style.background = isConnected 
+                    ? "linear-gradient(135deg, #00aa00 0%, #008800 50%, #006600 100%)"
+                    : "linear-gradient(135deg, #00ffff 0%, #0080ff 50%, #8000ff 100%)";
                 }}
               >
-                Connect Wallet
+                {isConnected ? (
+                  <>
+                    <span style={{ fontSize: "0.8rem", marginRight: "4px" }}>🔗</span>
+                    {currentAccount?.address ? 
+                      `${currentAccount.address.slice(0, 6)}...${currentAccount.address.slice(-4)}` : 
+                      "Connected"
+                    }
+                  </>
+                ) : (
+                  "Connect Wallet"
+                )}
               </button>
             )}
           </Nav>
