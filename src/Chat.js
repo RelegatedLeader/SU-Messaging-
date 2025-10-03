@@ -16,7 +16,7 @@ import {
 } from "react-bootstrap";
 import { useParams, useNavigate } from "react-router-dom";
 import { TransactionBlock } from "@mysten/sui.js/transactions";
-import { useWalletKit } from "@mysten/wallet-kit";
+import { useCurrentWallet, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
 import { SuiClient } from "@mysten/sui.js/client";
 import * as bcs from "@mysten/bcs";
 import Long from "long";
@@ -24,12 +24,14 @@ import Long from "long";
 function Chat() {
   const { id: recipientAddress } = useParams();
   const navigate = useNavigate();
-  const { signAndExecuteTransactionBlock, isConnected, currentAccount } =
-    useWalletKit();
+  const { currentAccount, isConnected } = useCurrentWallet();
+  const { mutate: signAndExecuteTransactionBlock } = useSignAndExecuteTransaction();
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const [sendStatus, setSendStatus] = useState(false);
   const [error, setError] = useState(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [cursor, setCursor] = useState(null);
   const [recipientName, setRecipientName] = useState(
     recipientAddress || "Stranger"
   );
@@ -68,22 +70,23 @@ function Chat() {
     [client]
   );
 
-  const fetchMessages = useCallback(async () => {
+  const fetchMessages = useCallback(async (loadMore = false) => {
     if (!isConnected || !currentAccount || !recipientAddress) return;
     try {
       const senderAddress = currentAccount.address;
       let allEvents = [];
-      let cursor = null;
+      let currentCursor = loadMore ? cursor : null;
 
       // Limit initial fetch to 20 events for faster loading
       const response = await client.queryEvents({
         query: { MoveEventType: `${packageId}::message::MessageCreated` },
         limit: 20,
-        cursor,
+        cursor: currentCursor,
         order: "ascending",
       });
       allEvents = [...allEvents, ...response.data];
-      cursor = response.nextCursor;
+      setCursor(response.nextCursor);
+      setHasMore(response.hasNextPage);
 
       const fetchedMessages = [];
       const seenIds = new Set();
@@ -137,14 +140,16 @@ function Chat() {
           }
         }
       }
-      setMessages(
-        fetchedMessages.sort((a, b) => a.timestampMs - b.timestampMs)
-      );
+      if (loadMore) {
+        setMessages(prev => [...prev, ...fetchedMessages].sort((a, b) => a.timestampMs - b.timestampMs));
+      } else {
+        setMessages(fetchedMessages.sort((a, b) => a.timestampMs - b.timestampMs));
+      }
     } catch (err) {
       setError("Failed to fetch messages: " + err.message);
       console.error("Fetch error details:", err);
     }
-  }, [isConnected, currentAccount, recipientAddress, client]);
+  }, [isConnected, currentAccount, recipientAddress, client, cursor]);
 
   const fetchRecentChats = useCallback(async () => {
     if (!isConnected || !currentAccount) return;
@@ -213,8 +218,20 @@ function Chat() {
     if (!message.trim() || !isConnected) return;
 
     setSendStatus(true);
+    const cleanedMessage = message.trim().replace(/\s+/g, " ").slice(0, 100);
+    const timestamp = new Date();
+    const optimisticMessage = {
+      id: `temp-${Date.now()}`, // Temporary ID
+      sender: currentAccount.address,
+      recipient: recipientAddress,
+      content: cleanedMessage,
+      timestamp: timestamp,
+      timestampMs: timestamp.getTime(),
+    };
+    setMessages(prev => [...prev, optimisticMessage].sort((a, b) => a.timestampMs - b.timestampMs));
+    setMessage("");
+
     try {
-      const cleanedMessage = message.trim().replace(/\s+/g, " ").slice(0, 100);
       const content = new TextEncoder().encode(cleanedMessage);
       const writer = new bcs.BcsWriter();
       writer.writeVec(content, (w, item) => w.write8(item));
@@ -237,12 +254,15 @@ function Chat() {
       });
 
       setSendStatus(false);
-      setMessage("");
+      // Optionally refetch to get real ID and timestamp
       await fetchMessages();
     } catch (err) {
       setError("Failed to send: " + err.message);
       console.error(err);
       setSendStatus(false);
+      // Remove optimistic message on failure
+      setMessages(prev => prev.filter(msg => msg.id !== optimisticMessage.id));
+      setMessage(cleanedMessage);
     }
   };
 
@@ -465,7 +485,24 @@ function Chat() {
                   NO MESSAGES YET. START CHATTING!
                 </div>
               ) : (
-                messages.map((msg) => (
+                <div>
+                  {hasMore && (
+                    <Button
+                      onClick={() => fetchMessages(true)}
+                      style={{
+                        backgroundColor: "#ff00ff",
+                        borderColor: "#ff00ff",
+                        color: "#330066",
+                        marginBottom: "10px",
+                        display: "block",
+                        marginLeft: "auto",
+                        marginRight: "auto",
+                      }}
+                    >
+                      Load More Messages
+                    </Button>
+                  )}
+                  {messages.map((msg) => (
                   <div
                     key={msg.id}
                     style={{
@@ -514,12 +551,11 @@ function Chat() {
                             : "#ff00ff",
                       }}
                     >
-                      {msg.timestamp instanceof Date && !isNaN(msg.timestamp)
-                        ? msg.timestamp.toLocaleString()
-                        : "Unknown Time"}
+                      {msg.timestamp.toLocaleString()}
                     </small>
                   </div>
-                ))
+                ))}
+                </div>
               )}
             </div>
           </div>

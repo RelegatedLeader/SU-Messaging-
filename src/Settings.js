@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { Container, Form, Button, Alert, Modal } from "react-bootstrap";
 import { TransactionBlock } from "@mysten/sui.js/transactions";
-import { useWalletKit } from "@mysten/wallet-kit";
+import { useCurrentWallet, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
 import { SuiClient } from "@mysten/sui.js/client";
 
 function Settings() {
-  const { signAndExecuteTransactionBlock, isConnected, currentAccount } =
-    useWalletKit();
+  const { currentAccount, isConnected } = useCurrentWallet();
+  const { mutate: signAndExecuteTransactionBlock } = useSignAndExecuteTransaction();
   const [displayName, setDisplayName] = useState("");
   const [currentName, setCurrentName] = useState("");
   const [registrationStatus, setRegistrationStatus] = useState(null);
