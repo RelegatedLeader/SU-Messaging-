@@ -52,7 +52,7 @@ function AppContent() {
 
   useEffect(() => {
     const client = new SuiClient({
-      url: "https://fullnode.testnet.sui.io", // Testnet for local CORS
+      url: "https://fullnode.mainnet.sui.io:443",
     });
     const fetchUserName = async () => {
       if (isConnected && currentAccount) {
@@ -62,7 +62,7 @@ function AppContent() {
         });
         const userObject = objects.data.find((obj) =>
           obj.data.type.includes(
-            "0x3f455d572c2b923918a0623bef2e075b9870dc650c2f9e164aa2ea5693506d80::su_messaging::User"
+            "0x2aaad5d1ce7482b5850dd11642358bf23cb0e6432b12a581eb77d212dca54045::su_messaging::User"
           )
         );
         setUserName(
@@ -70,7 +70,7 @@ function AppContent() {
             ? new TextDecoder().decode(
                 new Uint8Array(userObject.data.content.fields.display_name)
               )
-            : currentAccount.address.slice(0, 6) + "..."
+            : localStorage.getItem("currentDisplayName") || currentAccount.address.slice(0, 6) + "..."
         );
       }
     };
@@ -87,7 +87,7 @@ function AppContent() {
       setMenuColor(`rgb(${r}, ${g}, ${b})`);
     }, 100);
     return () => clearInterval(interval);
-  }, [isConnected, currentAccount]);
+  }, [isConnected, currentAccount, location.pathname]);
 
   // Navigate to dashboard when wallet connects (including auto-connect)
   useEffect(() => {

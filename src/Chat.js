@@ -44,7 +44,7 @@ function Chat() {
   const chatContentRef = useRef(null);
   const [lastFetchTime, setLastFetchTime] = useState(null);
   const packageId =
-    "0x3c7d131d38c117cbc75e3a8349ea3c841776ad6c6168e9590ba1fc4478018799";
+    "0x2aaad5d1ce7482b5850dd11642358bf23cb0e6432b12a581eb77d212dca54045";
 
   // Utility function for consistent message sorting
   const sortMessagesByTimestamp = (messages) => {
@@ -79,7 +79,7 @@ function Chat() {
         });
         const userObject = objects.data.find((obj) =>
           obj.data.type.includes(
-            `${packageId}::su_backend::su_messaging::User`
+            `${packageId}::su_messaging::User`
           )
         );
         const displayName = userObject?.data.content.fields.display_name

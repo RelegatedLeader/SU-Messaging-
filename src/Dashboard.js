@@ -34,7 +34,7 @@ function Dashboard() {
     try {
       const senderAddress = currentAccount.address;
       const packageId =
-        "0x3c7d131d38c117cbc75e3a8349ea3c841776ad6c6168e9590ba1fc4478018799";
+        "0x2aaad5d1ce7482b5850dd11642358bf23cb0e6432b12a581eb77d212dca54045";
 
       let allEvents = [];
 
@@ -68,7 +68,7 @@ function Dashboard() {
           });
           const userObject = objects.data.find((obj) =>
             obj.data.type.includes(
-              "0x3f455d572c2b923918a0623bef2e075b9870dc650c2f9e164aa2ea5693506d80::su_messaging::User"
+              "0x2aaad5d1ce7482b5850dd11642358bf23cb0e6432b12a581eb77d212dca54045::su_messaging::User"
             )
           );
           const displayName = userObject?.data.content.fields.display_name

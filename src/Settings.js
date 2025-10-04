@@ -9,7 +9,6 @@ function Settings() {
   const isConnected = !!currentAccount;
   const { mutate: signAndExecuteTransactionBlock } = useSignAndExecuteTransaction();
   const [displayName, setDisplayName] = useState("");
-  const [currentName, setCurrentName] = useState("");
   const [registrationStatus, setRegistrationStatus] = useState(null);
   const [error, setError] = useState(null);
   const [nameChangeCount, setNameChangeCount] = useState(0);
@@ -22,6 +21,7 @@ function Settings() {
   const [donationAmount, setDonationAmount] = useState("");
   const [subscriptionStatus, setSubscriptionStatus] = useState(null);
   const [isRegistered, setIsRegistered] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     const fetchCurrentName = async () => {
@@ -35,7 +35,7 @@ function Settings() {
         });
         const userObject = objects.data.find((obj) =>
           obj.data.type.includes(
-            "0x3c7d131d38c117cbc75e3a8349ea3c841776ad6c6168e9590ba1fc4478018799::su_messaging::User"
+            "0x2aaad5d1ce7482b5850dd11642358bf23cb0e6432b12a581eb77d212dca54045::su_messaging::User"
           )
         );
         
@@ -49,16 +49,18 @@ function Settings() {
           const changeCount = userObject.data.content.fields.name_change_count || 0;
           setNameChangeCount(changeCount);
           setRemainingFreeChanges(Math.max(0, 3 - changeCount));
-          setCurrentName(savedName || currentAccount.address.slice(0, 6) + "...");
           if (savedName) setDisplayName(savedName);
         } else {
           setIsRegistered(false);
-          setCurrentName(currentAccount.address.slice(0, 6) + "...");
         }
       }
     };
     fetchCurrentName();
-  }, [isConnected, currentAccount]);
+  }, [isConnected, currentAccount, refreshTrigger]);
+
+  const refreshRegistrationStatus = () => {
+    setRefreshTrigger(prev => prev + 1);
+  };
 
   const handleRegister = async () => {
     if (!isConnected) {
@@ -72,7 +74,7 @@ function Settings() {
     try {
       const tx = new Transaction();
       const packageId =
-        "0x3c7d131d38c117cbc75e3a8349ea3c841776ad6c6168e9590ba1fc4478018799";
+        "0x2aaad5d1ce7482b5850dd11642358bf23cb0e6432b12a581eb77d212dca54045";
 
       tx.moveCall({
         target: `${packageId}::su_messaging::register`,
@@ -91,9 +93,10 @@ function Settings() {
         onSuccess: (result) => {
           console.log('Registration result:', result);
           setRegistrationStatus("Registration successful! You can now set your display name.");
-          setIsRegistered(true);
-          // Refresh the current name display
-          setCurrentName("Anonymous");
+          // Refresh registration status to update the UI
+          setTimeout(() => {
+            refreshRegistrationStatus();
+          }, 2000); // Wait 2 seconds for transaction to confirm
         },
         onError: (error) => {
           setError("Registration failed: " + error.message);
@@ -121,7 +124,7 @@ function Settings() {
     try {
       const tx = new Transaction();
       const packageId =
-        "0x3c7d131d38c117cbc75e3a8349ea3c841776ad6c6168e9590ba1fc4478018799";
+        "0x2aaad5d1ce7482b5850dd11642358bf23cb0e6432b12a581eb77d212dca54045";
 
       // Get the user's User object
       const client = new SuiClient({
@@ -133,7 +136,7 @@ function Settings() {
       });
       const userObject = objects.data.find((obj) =>
         obj.data.type.includes(
-          "0x3c7d131d38c117cbc75e3a8349ea3c841776ad6c6168e9590ba1fc4478018799::su_messaging::User"
+          "0x2aaad5d1ce7482b5850dd11642358bf23cb0e6432b12a581eb77d212dca54045::su_messaging::User"
         )
       );
 
@@ -144,24 +147,28 @@ function Settings() {
 
       const userObjectId = userObject.data.objectId;
 
-      // Prepare payment coin
-      let paymentCoin;
+      // Call the appropriate function based on payment status
       if (nameChangeCount >= 3) {
-        // For paid changes, split 0.001 SUI from gas
-        paymentCoin = tx.splitCoins(tx.gas, [tx.pure(Math.floor(0.001 * 1e9))]); // 0.001 SUI in MIST
+        // Paid change
+        const [paymentCoin] = tx.splitCoins(tx.gas, [Math.floor(0.001 * 1e9)]); // 0.001 SUI in MIST
+        tx.moveCall({
+          target: `${packageId}::su_messaging::update_name_paid`,
+          arguments: [
+            tx.object(userObjectId),
+            tx.pure("vector<u8>", new TextEncoder().encode(displayName)),
+            paymentCoin,
+          ],
+        });
       } else {
-        // For free changes, create zero coin
-        paymentCoin = tx.zero(tx.object("0x0000000000000000000000000000000000000000000000000000000000000002")); // Zero SUI coin
+        // Free change
+        tx.moveCall({
+          target: `${packageId}::su_messaging::update_name_free`,
+          arguments: [
+            tx.object(userObjectId),
+            tx.pure("vector<u8>", new TextEncoder().encode(displayName)),
+          ],
+        });
       }
-
-      tx.moveCall({
-        target: `${packageId}::su_messaging::update_name`,
-        arguments: [
-          tx.object(userObjectId),
-          tx.pure(new TextEncoder().encode(displayName)),
-          paymentCoin,
-        ],
-      });
 
       const result = await signAndExecuteTransactionBlock({
         transaction: tx,
@@ -171,7 +178,6 @@ function Settings() {
       });
 
       localStorage.setItem("currentDisplayName", displayName);
-      setCurrentName(displayName);
       setNameChangeCount(nameChangeCount + 1);
       setRemainingFreeChanges(Math.max(0, 3 - (nameChangeCount + 1)));
       setRegistrationStatus(
@@ -207,22 +213,16 @@ function Settings() {
       const donation = parseFloat(donationAmount) || 0;
 
       tx.transferObjects(
-        [
-          tx.splitCoins(tx.gas, [
-            tx.pure(Math.floor(subscriptionAmount * 1e9)),
-          ]),
-        ],
-        tx.pure(
-          "0xd1b0ff621a6803c8f0cd8051359ce312ece62b485e010e32b58a99d5ec13201c"
-        )
+        tx.splitCoins(tx.gas, [
+          Math.floor(subscriptionAmount * 1e9),
+        ]),
+        "0xd1b0ff621a6803c8f0cd8051359ce312ece62b485e010e32b58a99d5ec13201c"
       );
 
       if (donation > 0) {
         tx.transferObjects(
-          [tx.splitCoins(tx.gas, [tx.pure(Math.floor(donation * 1e9))])],
-          tx.pure(
-            "0xd1b0ff621a6803c8f0cd8051359ce312ece62b485e010e32b58a99d5ec13201c"
-          )
+          tx.splitCoins(tx.gas, [Math.floor(donation * 1e9)]),
+          "0xd1b0ff621a6803c8f0cd8051359ce312ece62b485e010e32b58a99d5ec13201c"
         );
       }
 
@@ -311,10 +311,10 @@ function Settings() {
         Settings
       </h2>
       <div className="mt-4">
-        {!isRegistered ? (
-          // Registration UI
+        {/* Registration Section - Only shown if not registered */}
+        {!isRegistered && (
           <div
-            className="mx-auto text-center"
+            className="mx-auto text-center mb-4"
             style={{
               maxWidth: "400px",
               border: "2px solid #ff00ff",
@@ -362,9 +362,10 @@ function Settings() {
               {registrationStatus === "Registering..." ? "Registering..." : "Register Now"}
             </Button>
           </div>
-        ) : (
-        <Form
-          onSubmit={handleRegisterOrUpdate}
+        )}
+
+        {/* General Settings - Always Available */}
+        <div
           className="mx-auto"
           style={{
             maxWidth: "400px",
@@ -376,48 +377,10 @@ function Settings() {
             animation: "formColorShift 10s infinite",
           }}
         >
-          <style>{`
-            @keyframes formColorShift {
-              0% { border-color: #ff00ff; }
-              33% { border-color: #00ffff; }
-              66% { border-color: #ff00ff; }
-              100% { border-color: #ff00ff; }
-            }
-          `}</style>
-          <Form.Group controlId="displayName">
-            <Form.Label style={{ textShadow: "0 0 5px #ff00ff" }}>
-              Update Display Name on SUI Blockchain
-              {remainingFreeChanges > 0 ? (
-                <div style={{ fontSize: "12px", color: "#00ffff", marginTop: "5px" }}>
-                  {remainingFreeChanges} free change{remainingFreeChanges !== 1 ? "s" : ""} remaining
-                </div>
-              ) : (
-                <div style={{ fontSize: "12px", color: "#ffd700", marginTop: "5px" }}>
-                  Next change requires 0.001 SUI payment
-                </div>
-              )}
-            </Form.Label>
-            <Form.Control
-              type="text"
-              placeholder="Enter your display name"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              required
-              style={{
-                backgroundColor: "#1a0033",
-                color: "#00ffff",
-                border: "1px dashed #ff00ff",
-                borderRadius: "5px",
-                padding: "10px",
-                fontSize: "14px",
-                textShadow: "0 0 3px #ff00ff",
-                transition: "border-color 0.3s",
-              }}
-              onFocus={(e) => (e.target.style.borderColor = "#00ffff")}
-              onBlur={(e) => (e.target.style.borderColor = "#ff00ff")}
-            />
-          </Form.Group>
-          <Form.Group controlId="encryptMessages" className="mt-3">
+          <h5 style={{ color: "#00ffff", textShadow: "0 0 5px #ff00ff", marginBottom: "15px" }}>
+            General Settings
+          </h5>
+          <Form.Group controlId="encryptMessages" className="mb-3">
             <Form.Check
               type="switch"
               label="Enable Message Encryption"
@@ -426,7 +389,7 @@ function Settings() {
               style={{ color: "#00ffff", textShadow: "0 0 3px #ff00ff" }}
             />
           </Form.Group>
-          <Form.Group controlId="disableWalletPopup" className="mt-3">
+          <Form.Group controlId="disableWalletPopup">
             <Form.Check
               type="switch"
               label="Disable Wallet Pop-up (Free Option)"
@@ -435,32 +398,90 @@ function Settings() {
               style={{ color: "#00ffff", textShadow: "0 0 3px #ff00ff" }}
             />
           </Form.Group>
-          <Button
-            variant="primary"
-            type="submit"
-            className="mt-3"
+        </div>
+
+        {/* Display Name Section - Only shown if registered */}
+        {isRegistered && (
+          <Form
+            onSubmit={handleRegisterOrUpdate}
+            className="mx-auto mb-4"
             style={{
-              backgroundColor: "#ff00ff",
-              borderColor: "#ff00ff",
-              textShadow: "0 0 5px #00ffff",
-              padding: "10px 20px",
-              fontSize: "16px",
-              transition: "background-color 0.3s, border-color 0.3s",
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.backgroundColor = "#00ffff";
-              e.target.style.borderColor = "#00ffff";
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.backgroundColor = "#ff00ff";
-              e.target.style.borderColor = "#ff00ff";
+              maxWidth: "400px",
+              border: "2px solid #ff00ff",
+              padding: "15px",
+              borderRadius: "8px",
+              boxShadow: "0 0 15px rgba(0, 255, 255, 0.5)",
+              background: "rgba(26, 0, 51, 0.8)",
+              animation: "formColorShift 10s infinite",
             }}
           >
-            {remainingFreeChanges > 0 ? "Update Name (Free)" : "Update Name (0.001 SUI)"}
-          </Button>
-        </Form>
+            <style>{`
+              @keyframes formColorShift {
+                0% { border-color: #ff00ff; }
+                33% { border-color: #00ffff; }
+                66% { border-color: #ff00ff; }
+                100% { border-color: #ff00ff; }
+              }
+            `}</style>
+            <Form.Group controlId="displayName">
+              <Form.Label style={{ textShadow: "0 0 5px #ff00ff" }}>
+                Update Display Name on SUI Blockchain
+                {remainingFreeChanges > 0 ? (
+                  <div style={{ fontSize: "12px", color: "#00ffff", marginTop: "5px" }}>
+                    {remainingFreeChanges} free change{remainingFreeChanges !== 1 ? "s" : ""} remaining
+                  </div>
+                ) : (
+                  <div style={{ fontSize: "12px", color: "#ffd700", marginTop: "5px" }}>
+                    Next change requires 0.001 SUI payment
+                  </div>
+                )}
+              </Form.Label>
+              <Form.Control
+                type="text"
+                placeholder="Enter your display name"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                required
+                style={{
+                  backgroundColor: "#1a0033",
+                  color: "#00ffff",
+                  border: "1px dashed #ff00ff",
+                  borderRadius: "5px",
+                  padding: "10px",
+                  fontSize: "14px",
+                  textShadow: "0 0 3px #ff00ff",
+                  transition: "border-color 0.3s",
+                }}
+                onFocus={(e) => (e.target.style.borderColor = "#00ffff")}
+                onBlur={(e) => (e.target.style.borderColor = "#ff00ff")}
+              />
+            </Form.Group>
+            <Button
+              variant="primary"
+              type="submit"
+              className="mt-3"
+              style={{
+                backgroundColor: "#ff00ff",
+                borderColor: "#ff00ff",
+                textShadow: "0 0 5px #00ffff",
+                padding: "10px 20px",
+                fontSize: "16px",
+                transition: "background-color 0.3s, border-color 0.3s",
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = "#00ffff";
+                e.target.style.borderColor = "#00ffff";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = "#ff00ff";
+                e.target.style.borderColor = "#ff00ff";
+              }}
+            >
+              Update Display Name
+            </Button>
+          </Form>
         )}
-        {registrationStatus && (
+
           <Alert
             variant="success"
             className="mt-3"
