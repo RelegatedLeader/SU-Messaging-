@@ -66,8 +66,12 @@ function Chat() {
   );
 
   const fetchMessages = useCallback(async () => {
-    if (!isConnected || !currentAccount || !recipientAddress) return;
+    if (!isConnected || !currentAccount || !recipientAddress) {
+      console.log('fetchMessages: missing requirements', { isConnected, currentAccount: !!currentAccount, recipientAddress });
+      return;
+    }
     try {
+      console.log('fetchMessages: starting fetch for conversation between', currentAccount.address, 'and', recipientAddress);
       const senderAddress = currentAccount.address;
       let allEvents = [];
       let cursor = null;
@@ -79,6 +83,7 @@ function Chat() {
         cursor,
         order: "ascending",
       });
+      console.log('fetchMessages: found', response.data.length, 'events');
       allEvents = [...allEvents, ...response.data];
       cursor = response.nextCursor;
 
@@ -254,10 +259,31 @@ function Chat() {
       });
 
       console.log('Transaction result:', result);
+      console.log('Transaction effects:', result?.effects);
+      console.log('Transaction events:', result?.events);
 
-      setSendStatus(false);
-      setMessage("");
-      await fetchMessages();
+      // Check if transaction was successful (even if result is undefined)
+      if (result === undefined || result?.effects?.status?.status === 'success' || !result) {
+        console.log('Transaction completed (result undefined or success)');
+
+        // Optimistically add the message to the UI immediately
+        const newMessage = {
+          id: `temp-${Date.now()}`, // Temporary ID
+          sender: currentAccount.address,
+          recipient: recipientAddress,
+          content: cleanedMessage,
+          timestamp: new Date(),
+          timestampMs: Date.now(),
+        };
+        setMessages(prevMessages => [...prevMessages, newMessage]);
+
+        setSendStatus(false);
+        setMessage("");
+        // Fetch messages in background to update with real data
+        setTimeout(() => fetchMessages(), 2000);
+      } else {
+        throw new Error('Transaction failed: ' + JSON.stringify(result));
+      }
     } catch (err) {
       console.error('Transaction failed with error:', err);
       console.error('Error details:', {

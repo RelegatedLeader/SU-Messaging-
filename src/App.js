@@ -594,8 +594,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <SuiClientProvider networks={{ mainnet: { url: "https://fullnode.mainnet.sui.io:443" } }} defaultNetwork="mainnet">
         <WalletProvider
-          autoConnect={false}
-          enableUnsafeBurner={process.env.NODE_ENV === 'development'}
+          autoConnect={true}
         >
           <Router>
             <AppContent />
