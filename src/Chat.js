@@ -831,10 +831,34 @@ function Chat() {
                         ✓ Confirmed
                       </span>
                     )}
-                    {msg.status === 'failed' && (
-                      <span style={{ color: "#ff0000", marginLeft: "8px", fontSize: "12px" }}>
-                        ✗ Failed
-                      </span>
+                    {msg.status === 'failed' && msg.sender === currentAccount?.address && (
+                      <>
+                        <span style={{ color: "#ff0000", marginLeft: "8px", fontSize: "12px" }}>
+                          ✗ Failed
+                        </span>
+                        <button
+                          onClick={() => {
+                            setMessages(prevMessages => 
+                              prevMessages.filter(m => m.id !== msg.id)
+                            );
+                          }}
+                          style={{
+                            background: "none",
+                            border: "1px solid #ff0000",
+                            color: "#ff0000",
+                            fontSize: "10px",
+                            padding: "2px 6px",
+                            marginLeft: "8px",
+                            cursor: "pointer",
+                            borderRadius: "3px",
+                          }}
+                          onMouseOver={(e) => e.target.style.background = "#ff0000"}
+                          onMouseOut={(e) => e.target.style.background = "none"}
+                          title="Delete failed message"
+                        >
+                          ✕
+                        </button>
+                      </>
                     )}
                     <br />
                     <small
