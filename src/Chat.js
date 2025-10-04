@@ -17,8 +17,7 @@ import {
 import { useParams, useNavigate } from "react-router-dom";
 import { Transaction, Inputs } from "@mysten/sui/transactions";
 import { bcs } from "@mysten/bcs";
-import { useCurrentAccount, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
-import { SuiClient } from "@mysten/sui/client";
+import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit";
 import Long from "long";
 
 function Chat() {
@@ -27,6 +26,7 @@ function Chat() {
   const currentAccount = useCurrentAccount();
   const isConnected = !!currentAccount;
   const { mutate: signAndExecuteTransactionBlock } = useSignAndExecuteTransaction();
+  const client = useSuiClient();
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const [sendStatus, setSendStatus] = useState(false);
@@ -36,10 +36,6 @@ function Chat() {
   );
   const [recentChats, setRecentChats] = useState([]);
   const chatContentRef = useRef(null);
-  const client = useMemo(
-    () => new SuiClient({ url: "https://fullnode.mainnet.sui.io:443" }),
-    []
-  ); // Wrapped in useMemo
   const packageId =
     "0x3c7d131d38c117cbc75e3a8349ea3c841776ad6c6168e9590ba1fc4478018799";
 
@@ -66,7 +62,7 @@ function Chat() {
         return address.slice(0, 6) + "...";
       }
     },
-    [client]
+    []
   );
 
   const fetchMessages = useCallback(async () => {
@@ -241,17 +237,35 @@ function Chat() {
         ],
       });
 
-      await signAndExecuteTransactionBlock({
-        transaction: tx,
-        options: { showEffects: true },
+      console.log('Sending transaction with packageId:', packageId);
+      console.log('Transaction details:', {
+        target: `${packageId}::su_messaging::send_message`,
+        recipient: recipientAddress,
+        contentLength: content.length,
+        clock: "0x0000000000000000000000000000000000000000000000000000000000000006"
       });
+
+      const result = await signAndExecuteTransactionBlock({
+        transaction: tx,
+        options: {
+          showEffects: true,
+          showEvents: true,
+        },
+      });
+
+      console.log('Transaction result:', result);
 
       setSendStatus(false);
       setMessage("");
       await fetchMessages();
     } catch (err) {
+      console.error('Transaction failed with error:', err);
+      console.error('Error details:', {
+        message: err.message,
+        stack: err.stack,
+        name: err.name
+      });
       setError("Failed to send: " + err.message);
-      console.error(err);
       setSendStatus(false);
     }
   };
