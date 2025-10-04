@@ -28,15 +28,10 @@ function Chat() {
   const { mutate: signAndExecuteTransactionBlock } = useSignAndExecuteTransaction();
   const client = useSuiClient();
   
-  console.log('Chat component state:', { isConnected, currentAccount: currentAccount?.address, recipientAddress });
-  
-  // Redirect to dashboard if not connected
+  // Debug logging for component state
   useEffect(() => {
-    if (!isConnected) {
-      console.log('Not connected, redirecting to dashboard');
-      navigate('/');
-    }
-  }, [isConnected, navigate]);
+    console.log('Chat component state:', { isConnected, currentAccount: currentAccount?.address, recipientAddress });
+  }, [isConnected, currentAccount?.address, recipientAddress]);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const [sendStatus, setSendStatus] = useState(false);
@@ -46,6 +41,7 @@ function Chat() {
   );
   const [recentChats, setRecentChats] = useState([]);
   const chatContentRef = useRef(null);
+  const [lastFetchTime, setLastFetchTime] = useState(null);
   const packageId =
     "0x3c7d131d38c117cbc75e3a8349ea3c841776ad6c6168e9590ba1fc4478018799";
 
@@ -95,39 +91,89 @@ function Chat() {
       console.log('fetchMessages: missing requirements', { isConnected, currentAccount: !!currentAccount, recipientAddress });
       return;
     }
+
+    // Skip if we recently fetched to avoid rate limits
+    const now = Date.now();
+    if (lastFetchTime && now - lastFetchTime < 5000) { // 5 second minimum interval
+      return;
+    }
+    setLastFetchTime(now);
+
     try {
       console.log('fetchMessages: starting fetch for conversation between', currentAccount.address, 'and', recipientAddress);
       const senderAddress = currentAccount.address;
       let allEvents = [];
       let cursor = null;
+      let retryCount = 0;
+      const maxRetries = 3;
 
-      // Limit initial fetch to 20 events for faster loading
-      const response = await client.queryEvents({
-        query: { All: [] },
-        limit: 50,
-        cursor,
-        order: "ascending",
-      });
-      
-      console.log('All events received:', response.data.length, 'events');
-      console.log('Event types found:', [...new Set(response.data.map(e => e.type))]);
-      
-      // Filter for MessageCreated events from our package
-      const messageEvents = response.data.filter(event => 
-        event.type.includes('MessageCreated') && event.type.includes(packageId)
-      );
-      
-      console.log('Filtered message events:', messageEvents.length);
-      console.log('fetchMessages: found', messageEvents.length, 'message events');
-      allEvents = [...allEvents, ...messageEvents];
-      cursor = response.nextCursor;
+      while (retryCount < maxRetries) {
+        try {
+          // Try different query approaches
+          let response;
+          
+          // First try: query events by package
+          try {
+            response = await client.queryEvents({
+              query: { MoveModule: { package: packageId, module: "su_messaging" } },
+              limit: 20,
+              cursor,
+              order: "ascending",
+            });
+            console.log('Query by package/module successful, events:', response.data.length);
+          } catch (pkgError) {
+            console.log('Package query failed, trying All events:', pkgError.message);
+            // Fallback: query all events
+            response = await client.queryEvents({
+              query: { All: [] },
+              limit: 20,
+              cursor,
+              order: "ascending",
+            });
+          }
+          
+          console.log('All events received:', response.data.length);
+          console.log('Event types found:', [...new Set(response.data.map(e => e.type))]);
+          
+          // Filter for MessageCreated events from our package
+          const messageEvents = response.data.filter(event => 
+            event.type === `${packageId}::su_messaging::MessageCreated` ||
+            event.type.includes('MessageCreated')
+          );
+          
+          console.log('Filtered message events:', messageEvents.length);
+          console.log('Message event types:', messageEvents.map(e => e.type));
+          console.log('fetchMessages: found', messageEvents.length, 'message events');
+          allEvents = [...allEvents, ...messageEvents];
+          cursor = response.nextCursor;
+
+          // Break if we have events or no more pages
+          if (messageEvents.length > 0 || !response.hasNextPage) {
+            break;
+          }
+          
+          // Add delay between requests to avoid rate limits
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+        } catch (error) {
+          console.error(`Event query attempt ${retryCount + 1} failed:`, error);
+          retryCount++;
+          
+          if (retryCount < maxRetries) {
+            // Exponential backoff
+            await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+          }
+        }
+      }
 
       const fetchedMessages = [];
       const seenIds = new Set();
       
       for (const event of allEvents) {
         const eventData = event.parsedJson || {};
-        console.log('Processing event:', eventData);
+        console.log('Processing event:', event);
+        console.log('Event parsedJson:', eventData);
+        console.log('Event full structure:', JSON.stringify(event, null, 2));
         
         const { message_id, sender, recipient } = eventData;
         if (!message_id || !sender || !recipient) {
@@ -149,6 +195,9 @@ function Chat() {
             
             if (messageObject.data?.content?.fields && !seenIds.has(message_id)) {
               const fields = messageObject.data.content.fields;
+              console.log('Message object fields:', fields);
+              console.log('Message object content type:', messageObject.data.content.type);
+              
               const timestampMs = Long.fromValue(fields.timestamp).toNumber();
               const timestamp = new Date(timestampMs);
               
@@ -203,29 +252,57 @@ function Chat() {
 
   const fetchRecentChats = useCallback(async () => {
     if (!isConnected || !currentAccount) return;
+    
+    // Skip if we recently fetched to avoid rate limits
+    const now = Date.now();
+    if (lastFetchTime && now - lastFetchTime < 10000) { // 10 second minimum interval
+      return;
+    }
+    setLastFetchTime(now);
+    
     try {
       const senderAddress = currentAccount.address;
       let allEvents = [];
       let cursor = null;
-      let hasNextPage = true;
+      let retryCount = 0;
+      const maxRetries = 3;
 
-      do {
-        const response = await client.queryEvents({
-          query: { All: [] },
-          limit: 50, // Reduced limit for faster loading
-          cursor,
-          order: "ascending",
-        });
-        
-        // Filter for MessageCreated events from our package
-        const messageEvents = response.data.filter(event => 
-          event.type.includes('MessageCreated') && event.type.includes(packageId)
-        );
-        
-        allEvents = [...allEvents, ...messageEvents];
-        cursor = response.nextCursor;
-        hasNextPage = response.hasNextPage;
-      } while (hasNextPage);
+      while (retryCount < maxRetries) {
+        try {
+          const response = await client.queryEvents({
+            query: { All: [] },
+            limit: 10, // Reduced limit to avoid rate limits
+            cursor,
+            order: "ascending",
+          });
+          
+          // Filter for MessageCreated events from our package
+          const messageEvents = response.data.filter(event => 
+            event.type === `${packageId}::su_messaging::MessageCreated` ||
+            event.type.includes('MessageCreated')
+          );
+          
+          allEvents = [...allEvents, ...messageEvents];
+          cursor = response.nextCursor;
+          
+          // Break if we have events or no more pages
+          if (messageEvents.length > 0 || !response.hasNextPage) {
+            break;
+          }
+          
+          // Add delay between requests to avoid rate limits
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+        } catch (error) {
+          console.error(`Event query attempt ${retryCount + 1} failed:`, error);
+          retryCount++;
+          
+          if (retryCount < maxRetries) {
+            // Exponential backoff
+            await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+          }
+        }
+      }
 
       const recipients = new Set();
       for (const event of allEvents) {
@@ -266,22 +343,48 @@ function Chat() {
     fetchUserName,
   ]);
 
-  // Periodic check for message confirmations
+  // Periodic check for message confirmations (less aggressive to avoid rate limits)
   useEffect(() => {
     if (!isConnected || !messages.some(msg => msg.id.startsWith('temp-'))) {
       return; // No optimistic messages to confirm
     }
 
     const interval = setInterval(() => {
-      fetchMessages();
-    }, 5000); // Check every 5 seconds
+      // Only fetch if we haven't fetched recently
+      const now = Date.now();
+      if (!lastFetchTime || now - lastFetchTime > 15000) { // 15 second intervals
+        fetchMessages();
+      }
+    }, 15000); // Check every 15 seconds
 
     return () => clearInterval(interval);
-  }, [isConnected, messages, fetchMessages]);
+  }, [isConnected, messages, fetchMessages, lastFetchTime]);
 
+  // Load messages from localStorage on component mount
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (isConnected && currentAccount && recipientAddress) {
+      const storageKey = `messages_${currentAccount.address}_${recipientAddress}`;
+      const storedMessages = localStorage.getItem(storageKey);
+      if (storedMessages) {
+        try {
+          const parsedMessages = JSON.parse(storedMessages);
+          setMessages(parsedMessages);
+          console.log('Loaded messages from localStorage:', parsedMessages.length);
+        } catch (error) {
+          console.error('Failed to parse stored messages:', error);
+        }
+      }
+    }
+  }, [isConnected, currentAccount?.address, recipientAddress]);
+
+  // Save messages to localStorage whenever messages change
+  useEffect(() => {
+    if (isConnected && currentAccount && recipientAddress && messages.length > 0) {
+      const storageKey = `messages_${currentAccount.address}_${recipientAddress}`;
+      localStorage.setItem(storageKey, JSON.stringify(messages));
+      console.log('Saved messages to localStorage:', messages.length);
+    }
+  }, [messages, isConnected, currentAccount?.address, recipientAddress]);
 
   const handleSend = async (e) => {
     e.preventDefault();
@@ -292,7 +395,19 @@ function Chat() {
       console.log("Sending message to:", recipientAddress);
       console.log("Current account:", currentAccount?.address);
 
-      // Validate recipient address
+      const tempId = `temp-${Date.now()}`;
+      
+      // Add message with 'sending' status immediately
+      const tempMessage = {
+        id: tempId,
+        sender: currentAccount.address,
+        recipient: recipientAddress,
+        content: message.trim().replace(/\s+/g, " ").slice(0, 100),
+        timestamp: new Date(),
+        timestampMs: Date.now(),
+        status: 'sending',
+      };
+      setMessages(prevMessages => [...prevMessages, tempMessage]);
       if (!recipientAddress || !/^0x[a-fA-F0-9]{64}$/.test(recipientAddress)) {
         throw new Error("Invalid recipient address: " + recipientAddress);
       }
@@ -326,7 +441,7 @@ function Chat() {
       console.log('About to call signAndExecuteTransactionBlock with:', {
         transaction: tx,
         packageId,
-        target: `${packageId}::su_backend::su_messaging::send_message`,
+        target: `${packageId}::su_messaging::send_message`,
         options: {
           showEffects: true,
           showEvents: true,
@@ -346,23 +461,52 @@ function Chat() {
       console.log('Transaction events:', result?.events);
 
       // Check if transaction was successful
-      const isSuccess = result && result.effects && result.effects.status && result.effects.status.status === 'success';
+      const isSuccess = result && result.effects && result.effects.status && 
+                       result.effects.status.status === 'success';
       
-      console.log('Transaction success check:', isSuccess);
+      console.log('Transaction success check:', isSuccess, 'result type:', typeof result);
       
       if (isSuccess) {
         console.log('Transaction completed successfully');
 
-        // Optimistically add the message to the UI immediately
-        const newMessage = {
-          id: `temp-${Date.now()}`, // Temporary ID
-          sender: currentAccount.address,
-          recipient: recipientAddress,
-          content: cleanedMessage,
-          timestamp: new Date(),
-          timestampMs: Date.now(),
-        };
-        setMessages(prevMessages => [...prevMessages, newMessage]);
+        // Try to extract message info from transaction events
+        let messageId = null;
+        let eventSender = null;
+        let eventRecipient = null;
+        let eventTimestamp = null;
+
+        if (result.events && result.events.length > 0) {
+          const messageEvent = result.events.find(event => 
+            event.type === `${packageId}::su_messaging::MessageCreated` ||
+            event.type.includes('MessageCreated')
+          );
+          
+          if (messageEvent && messageEvent.parsedJson) {
+            const eventData = messageEvent.parsedJson;
+            messageId = eventData.message_id;
+            eventSender = eventData.sender;
+            eventRecipient = eventData.recipient;
+            eventTimestamp = eventData.timestamp;
+            console.log('Found message event in transaction:', eventData);
+          }
+        }
+
+        // Update the temporary message with confirmed status and real data
+        setMessages(prevMessages => 
+          prevMessages.map(msg => 
+            msg.id === tempId 
+              ? {
+                  ...msg,
+                  id: messageId || msg.id,
+                  sender: eventSender || msg.sender,
+                  recipient: eventRecipient || msg.recipient,
+                  timestamp: eventTimestamp ? new Date(Number(eventTimestamp)) : msg.timestamp,
+                  timestampMs: eventTimestamp || msg.timestampMs,
+                  status: 'confirmed'
+                }
+              : msg
+          )
+        );
 
         setSendStatus(false);
         setMessage("");
@@ -379,6 +523,16 @@ function Chat() {
         stack: err.stack,
         name: err.name
       });
+      
+      // Mark the temporary message as failed
+      setMessages(prevMessages => 
+        prevMessages.map(msg => 
+          msg.id === tempId 
+            ? { ...msg, status: 'failed' }
+            : msg
+        )
+      );
+      
       setError("Failed to send: " + err.message);
       setSendStatus(false);
     }
@@ -627,15 +781,21 @@ function Chat() {
                           ? "auto"
                           : "10px",
                       padding: "10px",
-                      border: msg.id.startsWith('temp-')
+                      border: msg.status === 'sending' || msg.id.startsWith('temp-')
                         ? "2px dashed #ffff00"
+                        : msg.status === 'failed'
+                        ? "2px solid #ff0000"
                         : "1px dashed #ff00ff",
-                      boxShadow: "0 0 10px rgba(0, 255, 255, 0.5)",
+                      boxShadow: msg.status === 'sending' || msg.id.startsWith('temp-')
+                        ? "0 0 10px rgba(255, 255, 0, 0.5)"
+                        : msg.status === 'failed'
+                        ? "0 0 10px rgba(255, 0, 0, 0.5)"
+                        : "0 0 10px rgba(0, 255, 255, 0.5)",
                       fontSize: "14px",
                       textShadow: "0 0 3px #ff00ff",
                       whiteSpace: "pre-wrap",
                       wordBreak: "break-word",
-                      opacity: msg.id.startsWith('temp-') ? 0.8 : 1,
+                      opacity: msg.status === 'sending' || msg.id.startsWith('temp-') ? 0.8 : 1,
                     }}
                   >
                     <strong>
@@ -645,9 +805,19 @@ function Chat() {
                       :
                     </strong>{" "}
                     {msg.content}
-                    {msg.id.startsWith('temp-') && (
+                    {(msg.status === 'sending' || msg.id.startsWith('temp-')) && (
                       <span style={{ color: "#ffff00", marginLeft: "8px", fontSize: "12px" }}>
-                        ⏳ Sending...
+                        ⏳ {msg.status === 'sending' ? 'Sending...' : 'Sent'}
+                      </span>
+                    )}
+                    {msg.status === 'confirmed' && (
+                      <span style={{ color: "#00ff00", marginLeft: "8px", fontSize: "12px" }}>
+                        ✓ Confirmed
+                      </span>
+                    )}
+                    {msg.status === 'failed' && (
+                      <span style={{ color: "#ff0000", marginLeft: "8px", fontSize: "12px" }}>
+                        ✗ Failed
                       </span>
                     )}
                     <br />
