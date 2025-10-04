@@ -21,6 +21,7 @@ function Settings() {
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [donationAmount, setDonationAmount] = useState("");
   const [subscriptionStatus, setSubscriptionStatus] = useState(null);
+  const [isRegistered, setIsRegistered] = useState(false);
 
   useEffect(() => {
     const fetchCurrentName = async () => {
@@ -37,20 +38,75 @@ function Settings() {
             "0x3c7d131d38c117cbc75e3a8349ea3c841776ad6c6168e9590ba1fc4478018799::su_messaging::User"
           )
         );
-        const savedName = userObject?.data.content.fields.display_name
-          ? new TextDecoder().decode(
-              new Uint8Array(userObject.data.content.fields.display_name)
-            )
-          : localStorage.getItem("currentDisplayName");
-        const changeCount = userObject?.data.content.fields.name_change_count || 0;
-        setNameChangeCount(changeCount);
-        setRemainingFreeChanges(Math.max(0, 3 - changeCount));
-        setCurrentName(savedName || currentAccount.address.slice(0, 6) + "...");
-        if (savedName) setDisplayName(savedName);
+        
+        if (userObject) {
+          setIsRegistered(true);
+          const savedName = userObject.data.content.fields.display_name
+            ? new TextDecoder().decode(
+                new Uint8Array(userObject.data.content.fields.display_name)
+              )
+            : localStorage.getItem("currentDisplayName");
+          const changeCount = userObject.data.content.fields.name_change_count || 0;
+          setNameChangeCount(changeCount);
+          setRemainingFreeChanges(Math.max(0, 3 - changeCount));
+          setCurrentName(savedName || currentAccount.address.slice(0, 6) + "...");
+          if (savedName) setDisplayName(savedName);
+        } else {
+          setIsRegistered(false);
+          setCurrentName(currentAccount.address.slice(0, 6) + "...");
+        }
       }
     };
     fetchCurrentName();
   }, [isConnected, currentAccount]);
+
+  const handleRegister = async () => {
+    if (!isConnected) {
+      setError("Please connect your wallet first.");
+      return;
+    }
+
+    setError(null);
+    setRegistrationStatus("Registering...");
+
+    try {
+      const tx = new Transaction();
+      const packageId =
+        "0x3c7d131d38c117cbc75e3a8349ea3c841776ad6c6168e9590ba1fc4478018799";
+
+      tx.moveCall({
+        target: `${packageId}::su_messaging::register`,
+        arguments: [],
+      });
+
+      console.log('Registering user with packageId:', packageId);
+
+      signAndExecuteTransactionBlock({
+        transaction: tx,
+        options: {
+          showEffects: true,
+          showEvents: true,
+        },
+      }, {
+        onSuccess: (result) => {
+          console.log('Registration result:', result);
+          setRegistrationStatus("Registration successful! You can now set your display name.");
+          setIsRegistered(true);
+          // Refresh the current name display
+          setCurrentName("Anonymous");
+        },
+        onError: (error) => {
+          setError("Registration failed: " + error.message);
+          setRegistrationStatus(null);
+          console.error(error);
+        }
+      });
+    } catch (err) {
+      setError("Registration failed: " + err.message);
+      setRegistrationStatus(null);
+      console.error(err);
+    }
+  };
 
   const handleRegisterOrUpdate = async (e) => {
     e.preventDefault();
@@ -88,27 +144,22 @@ function Settings() {
 
       const userObjectId = userObject.data.objectId;
 
-      // If this is the 4th or more change, add payment
+      // Prepare payment coin
+      let paymentCoin;
       if (nameChangeCount >= 3) {
-        // Add 0.001 SUI payment to the specified address
-        tx.transferObjects(
-          [
-            tx.splitCoins(tx.gas, [
-              tx.pure(Math.floor(0.001 * 1e9)), // 0.001 SUI in MIST
-            ]),
-          ],
-          tx.pure(
-            "0xd1b0ff621a6803c8f0cd8051359ce312ece62b485e010e32b58a99d5ec13201c"
-          )
-        );
+        // For paid changes, split 0.001 SUI from gas
+        paymentCoin = tx.splitCoins(tx.gas, [tx.pure(Math.floor(0.001 * 1e9))]); // 0.001 SUI in MIST
+      } else {
+        // For free changes, create zero coin
+        paymentCoin = tx.zero(tx.object("0x0000000000000000000000000000000000000000000000000000000000000002")); // Zero SUI coin
       }
 
       tx.moveCall({
         target: `${packageId}::su_messaging::update_name`,
         arguments: [
           tx.object(userObjectId),
-          tx.pure(displayName, "vector<u8>"),
-          tx.object(tx.gas), // Pass gas coin for payment
+          tx.pure(new TextEncoder().encode(displayName)),
+          paymentCoin,
         ],
       });
 
@@ -260,6 +311,58 @@ function Settings() {
         Settings
       </h2>
       <div className="mt-4">
+        {!isRegistered ? (
+          // Registration UI
+          <div
+            className="mx-auto text-center"
+            style={{
+              maxWidth: "400px",
+              border: "2px solid #ff00ff",
+              padding: "15px",
+              borderRadius: "8px",
+              boxShadow: "0 0 15px rgba(0, 255, 255, 0.5)",
+              background: "rgba(26, 0, 51, 0.8)",
+              animation: "formColorShift 10s infinite",
+            }}
+          >
+            <style>{`
+              @keyframes formColorShift {
+                0% { border-color: #ff00ff; }
+                33% { border-color: #00ffff; }
+                66% { border-color: #ff00ff; }
+                100% { border-color: #ff00ff; }
+              }
+            `}</style>
+            <h4 style={{ color: "#00ffff", textShadow: "0 0 5px #ff00ff", marginBottom: "15px" }}>
+              Welcome to SU Messaging!
+            </h4>
+            <p style={{ color: "#ffffff", marginBottom: "20px" }}>
+              To set a display name and access all features, you need to register on the blockchain first.
+            </p>
+            <Button
+              onClick={handleRegister}
+              disabled={registrationStatus === "Registering..."}
+              style={{
+                backgroundColor: "#ff00ff",
+                borderColor: "#ff00ff",
+                textShadow: "0 0 5px #00ffff",
+                padding: "10px 20px",
+                fontSize: "16px",
+                transition: "background-color 0.3s, border-color 0.3s",
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = "#00ffff";
+                e.target.style.borderColor = "#00ffff";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = "#ff00ff";
+                e.target.style.borderColor = "#ff00ff";
+              }}
+            >
+              {registrationStatus === "Registering..." ? "Registering..." : "Register Now"}
+            </Button>
+          </div>
+        ) : (
         <Form
           onSubmit={handleRegisterOrUpdate}
           className="mx-auto"
@@ -356,6 +459,7 @@ function Settings() {
             {remainingFreeChanges > 0 ? "Update Name (Free)" : "Update Name (0.001 SUI)"}
           </Button>
         </Form>
+        )}
         {registrationStatus && (
           <Alert
             variant="success"

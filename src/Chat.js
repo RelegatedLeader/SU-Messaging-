@@ -40,6 +40,7 @@ function Chat() {
     recipientAddress || "Stranger"
   );
   const [recentChats, setRecentChats] = useState([]);
+  const [senderNames, setSenderNames] = useState(new Map()); // Map of address -> display name
   const chatContentRef = useRef(null);
   const [lastFetchTime, setLastFetchTime] = useState(null);
   const packageId =
@@ -81,17 +82,24 @@ function Chat() {
             `${packageId}::su_backend::su_messaging::User`
           )
         );
-        return userObject?.data.content.fields.display_name
+        const displayName = userObject?.data.content.fields.display_name
           ? new TextDecoder().decode(
               new Uint8Array(userObject.data.content.fields.display_name)
             )
           : address.slice(0, 6) + "...";
+        
+        // Update the sender names map
+        setSenderNames(prev => new Map(prev.set(address, displayName)));
+        
+        return displayName;
       } catch (err) {
         console.error("Failed to fetch username:", err);
-        return address.slice(0, 6) + "...";
+        const fallbackName = address.slice(0, 6) + "...";
+        setSenderNames(prev => new Map(prev.set(address, fallbackName)));
+        return fallbackName;
       }
     },
-    []
+    [client, packageId]
   );
 
   const fetchMessages = useCallback(async () => {
@@ -703,6 +711,18 @@ function Chat() {
     }
   }, [messages, scrollToBottom]);
 
+  // Fetch sender names when messages change
+  useEffect(() => {
+    if (messages.length > 0) {
+      const uniqueSenders = new Set(messages.map(msg => msg.sender));
+      uniqueSenders.forEach(sender => {
+        if (!senderNames.has(sender)) {
+          fetchUserName(sender);
+        }
+      });
+    }
+  }, [messages, senderNames, fetchUserName]);
+
   return (
     <Container
       className="mt-5"
@@ -962,7 +982,7 @@ function Chat() {
                     <strong>
                       {msg.sender === currentAccount?.address
                         ? "YOU"
-                        : msg.sender.slice(0, 6) + "..."}
+                        : (senderNames.get(msg.sender) || msg.sender.slice(0, 6) + "...")}
                       :
                     </strong>{" "}
                     {msg.content}
