@@ -45,6 +45,15 @@ function Chat() {
   const packageId =
     "0x3c7d131d38c117cbc75e3a8349ea3c841776ad6c6168e9590ba1fc4478018799";
 
+  // Utility function for consistent message sorting
+  const sortMessagesByTimestamp = (messages) => {
+    return [...messages].sort((a, b) => {
+      const timeA = a.clientTimestampMs || a.timestampMs;
+      const timeB = b.clientTimestampMs || b.timestampMs;
+      return timeA - timeB;
+    });
+  };
+
   // Check if package exists
   useEffect(() => {
     const checkPackage = async () => {
@@ -276,6 +285,7 @@ function Chat() {
             // If timestamps are very close (within 30 seconds), prefer confirmed over optimistic
             if (Math.abs(clientTime - existingTime) < 30000) {
               if (message.status === 'confirmed' && existing.status !== 'confirmed') {
+                console.log('Replacing optimistic with confirmed:', message.content.substring(0, 30));
                 messageMap.set(key, message); // Replace with confirmed
               } else if (message.status !== 'confirmed' && existing.status === 'confirmed') {
                 // Keep existing confirmed message
@@ -286,7 +296,12 @@ function Chat() {
                 }
               }
             } else {
-              // Different timestamps, keep both (not duplicates)
+              // Different timestamps, these are different messages (not duplicates)
+              console.log('Different timestamps for same content, keeping both:', {
+                content: message.content.substring(0, 30),
+                time1: new Date(existingTime).toLocaleTimeString(),
+                time2: new Date(clientTime).toLocaleTimeString()
+              });
               uniqueMessages.push(message);
             }
           } else {
@@ -298,11 +313,7 @@ function Chat() {
         messageMap.forEach(message => uniqueMessages.push(message));
         
         // Sort by client timestamp (when send button was clicked)
-        return uniqueMessages.sort((a, b) => {
-          const timeA = a.clientTimestampMs || a.timestampMs;
-          const timeB = b.clientTimestampMs || b.timestampMs;
-          return timeA - timeB;
-        });
+        return sortMessagesByTimestamp(uniqueMessages);
       });
     } catch (err) {
       setError("Failed to fetch messages: " + err.message);
@@ -408,7 +419,7 @@ function Chat() {
     return () => clearInterval(interval);
   }, [isConnected, messages, fetchMessages, lastFetchTime]);
 
-  // Load messages from localStorage on component mount
+  // Load messages from localStorage on component mount (only as fallback)
   useEffect(() => {
     if (isConnected && currentAccount && recipientAddress) {
       const storageKey = `messages_${currentAccount.address}_${recipientAddress}`;
@@ -430,10 +441,25 @@ function Chat() {
               return true;
             });
           
-          setMessages(parsedMessages);
-          console.log('Loaded messages from localStorage:', parsedMessages.length);
-          // Scroll to bottom after loading messages
-          setTimeout(() => scrollToBottom(), 100);
+          // Only load from localStorage if we don't have messages yet (prevent overriding blockchain data)
+          setMessages(prevMessages => {
+            if (prevMessages.length === 0) {
+              console.log('Loading messages from localStorage:', parsedMessages.length, 'for key:', storageKey);
+              console.log('Sample messages:', parsedMessages.slice(0, 2).map(m => ({
+                content: m.content.substring(0, 30),
+                time: new Date(m.clientTimestampMs || m.timestampMs).toLocaleString(),
+                sender: m.sender.substring(0, 6)
+              })));
+              // Sort them properly
+              const sortedMessages = sortMessagesByTimestamp(parsedMessages);
+              // Scroll to bottom after loading messages
+              setTimeout(() => scrollToBottom(), 100);
+              return sortedMessages;
+            } else {
+              console.log('Skipping localStorage load - messages already loaded from blockchain, prevMessages:', prevMessages.length);
+              return prevMessages;
+            }
+          });
         } catch (error) {
           console.error('Failed to parse stored messages:', error);
         }
@@ -456,16 +482,27 @@ function Chat() {
     }
   }, [messages, isConnected, currentAccount?.address, recipientAddress]);
 
-  // Scroll to bottom when messages change or component mounts
+  // Clear messages when account changes to prevent cross-account contamination
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    setMessages([]);
+    setError(null);
+    console.log('Cleared messages due to account change:', currentAccount?.address);
+  }, [currentAccount?.address]);
+
+  // Clear messages when recipient changes
+  useEffect(() => {
+    setMessages([]);
+    setError(null);
+    console.log('Cleared messages due to recipient change:', recipientAddress);
+  }, [recipientAddress]);
 
   const handleSend = async (e) => {
     e.preventDefault();
     if (!message.trim() || !isConnected) return;
 
-    const tempId = `temp-${Date.now()}`;
+    // Use a single timestamp for consistency
+    const clientTimestamp = Date.now();
+    const tempId = `temp-${clientTimestamp}`;
     setSendStatus(true);
       console.log("Sending message to:", recipientAddress);
       console.log("Current account:", currentAccount?.address);
@@ -500,7 +537,6 @@ function Chat() {
       });
       
       // Add message with 'sending' status immediately
-      const clientTimestamp = Date.now();
       const tempMessage = {
         id: tempId,
         sender: currentAccount.address,
@@ -511,7 +547,11 @@ function Chat() {
         clientTimestampMs: clientTimestamp, // Preserve original send time for ordering
         status: 'sending',
       };
-      setMessages(prevMessages => [...prevMessages, tempMessage]);
+      setMessages(prevMessages => {
+        const newMessages = [...prevMessages, tempMessage];
+        // Sort by client timestamp after adding
+        return sortMessagesByTimestamp(newMessages);
+      });
 
       console.log('About to call signAndExecuteTransactionBlock with:', {
         transaction: tx,
@@ -574,8 +614,8 @@ function Chat() {
             }
 
             // Update the temporary message with confirmed status and real data
-            setMessages(prevMessages => 
-              prevMessages.map(msg => 
+            setMessages(prevMessages => {
+              const updatedMessages = prevMessages.map(msg => 
                 msg.id === tempId 
                   ? {
                       ...msg,
@@ -588,8 +628,11 @@ function Chat() {
                       status: 'confirmed'
                     }
                   : msg
-              )
-            );
+              );
+              
+              // Sort by client timestamp after updating
+              return sortMessagesByTimestamp(updatedMessages);
+            });
 
             setSendStatus(false);
             setMessage("");
