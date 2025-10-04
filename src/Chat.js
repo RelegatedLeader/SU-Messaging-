@@ -575,17 +575,17 @@ function Chat() {
     <Container
       className="mt-5"
       style={{
-        maxWidth: "900px",
-        minHeight: "500px", // Reduced minimum height
+        maxWidth: "800px", // Even narrower
+        minHeight: "450px", // Even shorter
         display: "flex",
         flexDirection: "column",
         background: "linear-gradient(135deg, #1a0033, #330066)",
-        border: "4px solid #ff00ff", // Slightly thinner border
-        borderRadius: "8px", // Slightly smaller radius
-        boxShadow: "0 0 15px #00ffff", // Slightly smaller shadow
+        border: "3px solid #ff00ff", // Thinner border
+        borderRadius: "6px", // Smaller radius
+        boxShadow: "0 0 12px #00ffff", // Smaller shadow
         fontFamily: "Orbitron, sans-serif",
         color: "#00ffff",
-        padding: "8px", // Reduced padding
+        padding: "6px", // Even less padding
       }}
     >
       {sendStatus && (
@@ -645,8 +645,8 @@ function Chat() {
               position: "sticky",
               top: "0",
               backgroundColor: "#330066",
-              padding: "8px 0", // Reduced padding
-              height: "50px", // Reduced height
+              padding: "6px 0", // Even less padding
+              height: "45px", // Even shorter
               display: "flex",
               justifyContent: "center",
               alignItems: "center",
@@ -658,7 +658,8 @@ function Chat() {
               style={{
                 fontWeight: "bold",
                 margin: "0",
-                textShadow: "0 0 10px #00ffff",
+                textShadow: "0 0 6px #00ffff", // Smaller shadow
+                fontSize: "12px", // Even smaller
               }}
             >
               CHAT LIST
@@ -668,7 +669,7 @@ function Chat() {
             style={{
               flex: "1",
               overflowY: "auto", // Enabled scrolling
-              maxHeight: "calc(600px - 170px)", // Adjusted for header and padding
+              maxHeight: "calc(450px - 110px)", // Adjusted for new container and header heights
               background: "rgba(0, 0, 0, 0.5)",
             }}
           >
@@ -684,11 +685,11 @@ function Chat() {
                   color:
                     chat.address === recipientAddress ? "#330066" : "#00ffff",
                   borderBottom: "1px dashed #ff00ff",
-                  padding: "6px", // Reduced padding
+                  padding: "4px", // Even less padding
                   transition: "background-color 0.3s",
                   cursor: "pointer",
-                  fontSize: "12px", // Smaller font
-                  textShadow: "0 0 3px #ff00ff", // Smaller shadow
+                  fontSize: "10px", // Even smaller
+                  textShadow: "0 0 2px #ff00ff", // Smaller shadow
                 }}
                 onMouseEnter={(e) =>
                   (e.target.style.backgroundColor = "#00ccff")
@@ -717,8 +718,8 @@ function Chat() {
           <div
             style={{
               position: "relative",
-              padding: "8px 0", // Reduced padding
-              height: "50px", // Reduced height
+              padding: "6px 0", // Even less padding
+              height: "45px", // Even shorter
               backgroundColor: "#330066",
               borderBottom: "2px solid #ff00ff",
               flexShrink: 0,
@@ -728,8 +729,8 @@ function Chat() {
               style={{
                 margin: "0",
                 textAlign: "center",
-                textShadow: "0 0 12px #00ffff", // Slightly smaller shadow
-                fontSize: "18px", // Smaller font size
+                textShadow: "0 0 10px #00ffff", // Smaller shadow
+                fontSize: "16px", // Even smaller
               }}
             >
               CHATTING WITH {recipientName.toUpperCase()}
@@ -739,14 +740,14 @@ function Chat() {
               onClick={scrollToBottom}
               style={{
                 position: "absolute",
-                right: "8px", // Reduced right margin
+                right: "6px", // Less margin
                 top: "50%",
                 transform: "translateY(-50%)",
-                padding: "4px 8px", // Smaller padding
-                fontSize: "14px", // Smaller font
+                padding: "3px 6px", // Smaller padding
+                fontSize: "12px", // Smaller font
                 backgroundColor: "#ff00ff",
                 borderColor: "#ff00ff",
-                textShadow: "0 0 4px #00ffff", // Smaller shadow
+                textShadow: "0 0 3px #00ffff", // Smaller shadow
               }}
             >
               ↓
@@ -757,11 +758,11 @@ function Chat() {
             style={{
               flexGrow: 1,
               overflowY: "auto", // Enabled scrolling
-              padding: "10px", // Reduced padding
+              padding: "8px", // Even less padding
               background: "rgba(0, 0, 0, 0.7)",
               border: "2px solid #ff00ff",
-              borderRadius: "5px",
-              maxHeight: "calc(500px - 200px)", // Adjusted for smaller header and input
+              borderRadius: "4px", // Smaller radius
+              maxHeight: "calc(450px - 125px)", // Adjusted for new heights
             }}
           >
             <div
@@ -801,26 +802,26 @@ function Chat() {
                         msg.sender === currentAccount?.address
                           ? "right"
                           : "left",
-                      margin: "3px 0", // Reduced margin
-                      borderRadius: "6px", // Smaller radius
+                      margin: "2px 0", // Even less margin
+                      borderRadius: "4px", // Smaller radius
                       maxWidth: "70%",
                       marginLeft:
                         msg.sender === currentAccount?.address
                           ? "auto"
-                          : "8px", // Reduced margin
-                      padding: "6px", // Reduced padding
+                          : "6px", // Less margin
+                      padding: "4px", // Even less padding
                       border: msg.status === 'sending' || msg.id.startsWith('temp-')
                         ? "2px dashed #ffff00"
                         : msg.status === 'failed'
                         ? "2px solid #ff0000"
                         : "1px dashed #ff00ff",
                       boxShadow: msg.status === 'sending' || msg.id.startsWith('temp-')
-                        ? "0 0 8px rgba(255, 255, 0, 0.5)" // Smaller shadow
+                        ? "0 0 6px rgba(255, 255, 0, 0.5)" // Smaller shadow
                         : msg.status === 'failed'
-                        ? "0 0 8px rgba(255, 0, 0, 0.5)" // Smaller shadow
-                        : "0 0 8px rgba(0, 255, 255, 0.5)", // Smaller shadow
-                      fontSize: "12px", // Smaller font
-                      textShadow: "0 0 2px #ff00ff", // Smaller shadow
+                        ? "0 0 6px rgba(255, 0, 0, 0.5)" // Smaller shadow
+                        : "0 0 6px rgba(0, 255, 255, 0.5)", // Smaller shadow
+                      fontSize: "11px", // Even smaller
+                      textShadow: "0 0 1px #ff00ff", // Smaller shadow
                       whiteSpace: "pre-wrap",
                       wordBreak: "break-word",
                       opacity: msg.status === 'sending' || msg.id.startsWith('temp-') ? 0.8 : 1,
@@ -834,18 +835,18 @@ function Chat() {
                     </strong>{" "}
                     {msg.content}
                     {(msg.status === 'sending' || msg.id.startsWith('temp-')) && (
-                      <span style={{ color: "#ffff00", marginLeft: "6px", fontSize: "10px" }}>
+                      <span style={{ color: "#ffff00", marginLeft: "4px", fontSize: "9px" }}>
                         ⏳ {msg.status === 'sending' ? 'Sending...' : 'Sent'}
                       </span>
                     )}
                     {msg.status === 'confirmed' && (
-                      <span style={{ color: "#00ff00", marginLeft: "6px", fontSize: "10px" }}>
+                      <span style={{ color: "#00ff00", marginLeft: "4px", fontSize: "9px" }}>
                         ✓ Confirmed
                       </span>
                     )}
                     {msg.status === 'failed' && msg.sender === currentAccount?.address && (
                       <>
-                        <span style={{ color: "#ff0000", marginLeft: "6px", fontSize: "10px" }}>
+                        <span style={{ color: "#ff0000", marginLeft: "4px", fontSize: "9px" }}>
                           ✗ Failed
                         </span>
                         <button
@@ -858,11 +859,11 @@ function Chat() {
                             background: "none",
                             border: "1px solid #ff0000",
                             color: "#ff0000",
-                            fontSize: "8px", // Smaller font
-                            padding: "1px 4px", // Smaller padding
-                            marginLeft: "6px",
+                            fontSize: "7px", // Even smaller
+                            padding: "1px 3px", // Smaller padding
+                            marginLeft: "4px",
                             cursor: "pointer",
-                            borderRadius: "2px", // Smaller radius
+                            borderRadius: "1px", // Smaller radius
                           }}
                           onMouseOver={(e) => e.target.style.background = "#ff0000"}
                           onMouseOut={(e) => e.target.style.background = "none"}
@@ -875,7 +876,7 @@ function Chat() {
                     <br />
                     <small
                       style={{
-                        fontSize: "8px", // Smaller font
+                        fontSize: "7px", // Even smaller
                         color:
                           msg.sender === currentAccount?.address
                             ? "#330066"
@@ -897,14 +898,14 @@ function Chat() {
               backgroundColor: "#330066",
               borderTop: "2px solid #ff00ff",
               flexShrink: 0,
-              height: "80px", // Reduced height
+              height: "70px", // Even shorter
               display: "flex",
               alignItems: "center",
             }}
           >
             <Form
               onSubmit={handleSend}
-              style={{ width: "100%", display: "flex", gap: "8px" }} // Reduced gap
+              style={{ width: "100%", display: "flex", gap: "6px" }} // Smaller gap
             >
               <Form.Control
                 as="textarea"
@@ -916,16 +917,16 @@ function Chat() {
                 }
                 style={{
                   flex: "1",
-                  minHeight: "35px", // Reduced height
-                  padding: "8px", // Reduced padding
+                  minHeight: "30px", // Even shorter
+                  padding: "6px", // Less padding
                   backgroundColor: "#1a0033",
                   color: "#00ffff",
                   border: "2px solid #ff00ff",
-                  borderRadius: "4px", // Smaller radius
+                  borderRadius: "3px", // Smaller radius
                   resize: "none",
                   fontFamily: "Orbitron, sans-serif",
-                  fontSize: "12px", // Smaller font
-                  textShadow: "0 0 2px #ff00ff", // Smaller shadow
+                  fontSize: "10px", // Smaller font
+                  textShadow: "0 0 1px #ff00ff", // Smaller shadow
                 }}
                 disabled={!isConnected}
               />
@@ -933,12 +934,12 @@ function Chat() {
                 variant="primary"
                 type="submit"
                 style={{
-                  padding: "8px 16px", // Reduced padding
+                  padding: "6px 14px", // Smaller padding
                   backgroundColor: "#ff00ff",
                   borderColor: "#ff00ff",
                   fontFamily: "Orbitron, sans-serif",
-                  fontSize: "14px", // Smaller font
-                  textShadow: "0 0 4px #00ffff", // Smaller shadow
+                  fontSize: "12px", // Smaller font
+                  textShadow: "0 0 3px #00ffff", // Smaller shadow
                 }}
                 disabled={!isConnected}
               >
