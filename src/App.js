@@ -34,6 +34,7 @@ function AppContent() {
   const connect = useConnectWallet({
     onSuccess: () => {
       console.log('Wallet connected successfully');
+      navigate('/dashboard'); // Navigate to dashboard on successful connection
     },
     onError: (error) => {
       console.error('Wallet connection failed:', error);
@@ -87,6 +88,13 @@ function AppContent() {
     }, 100);
     return () => clearInterval(interval);
   }, [isConnected, currentAccount]);
+
+  // Navigate to dashboard when wallet connects (including auto-connect)
+  useEffect(() => {
+    if (isConnected && currentAccount && location.pathname === '/') {
+      navigate('/dashboard');
+    }
+  }, [isConnected, currentAccount, navigate, location.pathname]);
 
   // Close wallet dropdown when clicking outside
   useEffect(() => {
