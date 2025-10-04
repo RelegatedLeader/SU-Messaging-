@@ -27,6 +27,16 @@ function Chat() {
   const isConnected = !!currentAccount;
   const { mutate: signAndExecuteTransactionBlock } = useSignAndExecuteTransaction();
   const client = useSuiClient();
+  
+  console.log('Chat component state:', { isConnected, currentAccount: currentAccount?.address, recipientAddress });
+  
+  // Redirect to dashboard if not connected
+  useEffect(() => {
+    if (!isConnected) {
+      console.log('Not connected, redirecting to dashboard');
+      navigate('/');
+    }
+  }, [isConnected, navigate]);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const [sendStatus, setSendStatus] = useState(false);
@@ -39,6 +49,20 @@ function Chat() {
   const packageId =
     "0x3c7d131d38c117cbc75e3a8349ea3c841776ad6c6168e9590ba1fc4478018799";
 
+  // Check if package exists
+  useEffect(() => {
+    const checkPackage = async () => {
+      try {
+        console.log('Checking if package exists:', packageId);
+        const packageInfo = await client.getObject({ id: packageId });
+        console.log('Package info:', packageInfo);
+      } catch (error) {
+        console.error('Package not found or error:', error);
+      }
+    };
+    if (client) checkPackage();
+  }, [client]);
+
   // Define functions before use
   const fetchUserName = useCallback(
     async (address) => {
@@ -49,7 +73,7 @@ function Chat() {
         });
         const userObject = objects.data.find((obj) =>
           obj.data.type.includes(
-            "0x3f455d572c2b923918a0623bef2e075b9870dc650c2f9e164aa2ea5693506d80::su_messaging::User"
+            `${packageId}::su_backend::su_messaging::User`
           )
         );
         return userObject?.data.content.fields.display_name
@@ -66,6 +90,7 @@ function Chat() {
   );
 
   const fetchMessages = useCallback(async () => {
+    console.log('fetchMessages called with:', { isConnected, currentAccount: !!currentAccount, recipientAddress });
     if (!isConnected || !currentAccount || !recipientAddress) {
       console.log('fetchMessages: missing requirements', { isConnected, currentAccount: !!currentAccount, recipientAddress });
       return;
@@ -78,70 +103,98 @@ function Chat() {
 
       // Limit initial fetch to 20 events for faster loading
       const response = await client.queryEvents({
-        query: { MoveEventType: `${packageId}::su_messaging::MessageCreated` },
-        limit: 20,
+        query: { All: [] },
+        limit: 50,
         cursor,
         order: "ascending",
       });
-      console.log('fetchMessages: found', response.data.length, 'events');
-      allEvents = [...allEvents, ...response.data];
+      
+      console.log('All events received:', response.data.length, 'events');
+      console.log('Event types found:', [...new Set(response.data.map(e => e.type))]);
+      
+      // Filter for MessageCreated events from our package
+      const messageEvents = response.data.filter(event => 
+        event.type.includes('MessageCreated') && event.type.includes(packageId)
+      );
+      
+      console.log('Filtered message events:', messageEvents.length);
+      console.log('fetchMessages: found', messageEvents.length, 'message events');
+      allEvents = [...allEvents, ...messageEvents];
       cursor = response.nextCursor;
 
       const fetchedMessages = [];
       const seenIds = new Set();
+      
       for (const event of allEvents) {
-        const { sender, recipient } = event.parsedJson || {};
-        if (!sender || !recipient) continue;
+        const eventData = event.parsedJson || {};
+        console.log('Processing event:', eventData);
+        
+        const { message_id, sender, recipient } = eventData;
+        if (!message_id || !sender || !recipient) {
+          console.log('Missing required fields in event:', { message_id, sender, recipient });
+          continue;
+        }
+        
+        // Only process messages between these two users
         if (
           (sender === senderAddress && recipient === recipientAddress) ||
           (sender === recipientAddress && recipient === senderAddress)
         ) {
-          const [senderObjects, recipientObjects] = await Promise.all([
-            client.getOwnedObjects({
-              owner: sender,
-              filter: {
-                MatchAll: [{ StructType: `${packageId}::su_messaging::Message` }],
-              },
+          try {
+            // Get the message object directly using its ID
+            const messageObject = await client.getObject({
+              id: message_id,
               options: { showContent: true, showType: true },
-            }),
-            client.getOwnedObjects({
-              owner: recipient,
-              filter: {
-                MatchAll: [{ StructType: `${packageId}::su_messaging::Message` }],
-              },
-              options: { showContent: true, showType: true },
-            }),
-          ]);
-
-          const allObjects = [...senderObjects.data, ...recipientObjects.data];
-          for (const obj of allObjects) {
-            if (
-              obj.data?.content?.fields?.sender === sender &&
-              obj.data?.content?.fields?.recipient === recipient &&
-              !seenIds.has(obj.data.objectId)
-            ) {
-              const fields = obj.data.content.fields;
+            });
+            
+            if (messageObject.data?.content?.fields && !seenIds.has(message_id)) {
+              const fields = messageObject.data.content.fields;
               const timestampMs = Long.fromValue(fields.timestamp).toNumber();
               const timestamp = new Date(timestampMs);
+              
+              // Decode the content (stored as vector<u8> in the contract)
               const content = new TextDecoder().decode(
-                new Uint8Array(fields.content)
+                new Uint8Array(fields.encrypted_content || [])
               );
+              
+              console.log('Fetched message:', {
+                id: message_id,
+                sender: fields.sender,
+                recipient: fields.recipient,
+                content: content,
+                timestamp: timestamp
+              });
+              
               fetchedMessages.push({
-                id: obj.data.objectId,
+                id: message_id,
                 sender: fields.sender,
                 recipient: fields.recipient,
                 content: content,
                 timestamp: timestamp,
                 timestampMs: timestampMs,
               });
-              seenIds.add(obj.data.objectId);
+              seenIds.add(message_id);
             }
+          } catch (err) {
+            console.error('Failed to fetch message object:', message_id, err);
+            // Continue processing other messages even if one fails
           }
         }
       }
-      setMessages(
-        fetchedMessages.sort((a, b) => a.timestampMs - b.timestampMs)
-      );
+      // Preserve optimistically added messages that aren't yet confirmed on blockchain
+      setMessages(prevMessages => {
+        const confirmedMessages = fetchedMessages.sort((a, b) => a.timestampMs - b.timestampMs);
+        const optimisticMessages = prevMessages.filter(msg =>
+          msg.id.startsWith('temp-') && !confirmedMessages.some(confirmed =>
+            confirmed.sender === msg.sender &&
+            confirmed.recipient === msg.recipient &&
+            confirmed.content === msg.content &&
+            Math.abs(confirmed.timestampMs - msg.timestampMs) < 5000 // Within 5 seconds
+          )
+        );
+
+        return [...confirmedMessages, ...optimisticMessages].sort((a, b) => a.timestampMs - b.timestampMs);
+      });
     } catch (err) {
       setError("Failed to fetch messages: " + err.message);
       console.error("Fetch error details:", err);
@@ -158,12 +211,18 @@ function Chat() {
 
       do {
         const response = await client.queryEvents({
-          query: { MoveEventType: `${packageId}::su_messaging::MessageCreated` },
-          limit: 20, // Reduced limit for faster loading
+          query: { All: [] },
+          limit: 50, // Reduced limit for faster loading
           cursor,
           order: "ascending",
         });
-        allEvents = [...allEvents, ...response.data];
+        
+        // Filter for MessageCreated events from our package
+        const messageEvents = response.data.filter(event => 
+          event.type.includes('MessageCreated') && event.type.includes(packageId)
+        );
+        
+        allEvents = [...allEvents, ...messageEvents];
         cursor = response.nextCursor;
         hasNextPage = response.hasNextPage;
       } while (hasNextPage);
@@ -189,6 +248,7 @@ function Chat() {
   }, [isConnected, currentAccount, client, fetchUserName]);
 
   useEffect(() => {
+    console.log('useEffect triggered for fetchMessages with:', { isConnected, currentAccount: !!currentAccount, recipientAddress });
     fetchMessages();
     fetchRecentChats();
     const fetchNames = async () => {
@@ -205,6 +265,19 @@ function Chat() {
     fetchRecentChats,
     fetchUserName,
   ]);
+
+  // Periodic check for message confirmations
+  useEffect(() => {
+    if (!isConnected || !messages.some(msg => msg.id.startsWith('temp-'))) {
+      return; // No optimistic messages to confirm
+    }
+
+    const interval = setInterval(() => {
+      fetchMessages();
+    }, 5000); // Check every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [isConnected, messages, fetchMessages]);
 
   useEffect(() => {
     scrollToBottom();
@@ -250,6 +323,16 @@ function Chat() {
         clock: "0x0000000000000000000000000000000000000000000000000000000000000006"
       });
 
+      console.log('About to call signAndExecuteTransactionBlock with:', {
+        transaction: tx,
+        packageId,
+        target: `${packageId}::su_backend::su_messaging::send_message`,
+        options: {
+          showEffects: true,
+          showEvents: true,
+        }
+      });
+
       const result = await signAndExecuteTransactionBlock({
         transaction: tx,
         options: {
@@ -262,9 +345,13 @@ function Chat() {
       console.log('Transaction effects:', result?.effects);
       console.log('Transaction events:', result?.events);
 
-      // Check if transaction was successful (even if result is undefined)
-      if (result === undefined || result?.effects?.status?.status === 'success' || !result) {
-        console.log('Transaction completed (result undefined or success)');
+      // Check if transaction was successful
+      const isSuccess = result && result.effects && result.effects.status && result.effects.status.status === 'success';
+      
+      console.log('Transaction success check:', isSuccess);
+      
+      if (isSuccess) {
+        console.log('Transaction completed successfully');
 
         // Optimistically add the message to the UI immediately
         const newMessage = {
@@ -279,10 +366,11 @@ function Chat() {
 
         setSendStatus(false);
         setMessage("");
-        // Fetch messages in background to update with real data
-        setTimeout(() => fetchMessages(), 2000);
+        // Fetch messages in background to confirm the transaction
+        setTimeout(() => fetchMessages(), 1000);
       } else {
-        throw new Error('Transaction failed: ' + JSON.stringify(result));
+        console.error('Transaction failed or result undefined:', result);
+        throw new Error('Transaction failed: ' + (result ? JSON.stringify(result) : 'No result returned'));
       }
     } catch (err) {
       console.error('Transaction failed with error:', err);
@@ -539,12 +627,15 @@ function Chat() {
                           ? "auto"
                           : "10px",
                       padding: "10px",
-                      border: "1px dashed #ff00ff",
+                      border: msg.id.startsWith('temp-')
+                        ? "2px dashed #ffff00"
+                        : "1px dashed #ff00ff",
                       boxShadow: "0 0 10px rgba(0, 255, 255, 0.5)",
                       fontSize: "14px",
                       textShadow: "0 0 3px #ff00ff",
                       whiteSpace: "pre-wrap",
                       wordBreak: "break-word",
+                      opacity: msg.id.startsWith('temp-') ? 0.8 : 1,
                     }}
                   >
                     <strong>
@@ -554,6 +645,11 @@ function Chat() {
                       :
                     </strong>{" "}
                     {msg.content}
+                    {msg.id.startsWith('temp-') && (
+                      <span style={{ color: "#ffff00", marginLeft: "8px", fontSize: "12px" }}>
+                        ⏳ Sending...
+                      </span>
+                    )}
                     <br />
                     <small
                       style={{

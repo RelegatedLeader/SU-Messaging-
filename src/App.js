@@ -592,7 +592,13 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SuiClientProvider networks={{ mainnet: { url: "https://fullnode.mainnet.sui.io:443" } }} defaultNetwork="mainnet">
+      <SuiClientProvider 
+        networks={{
+          mainnet: { url: "https://fullnode.mainnet.sui.io:443" },
+          testnet: { url: "https://fullnode.testnet.sui.io:443" }
+        }} 
+        defaultNetwork="mainnet"
+      >
         <WalletProvider
           autoConnect={true}
         >
