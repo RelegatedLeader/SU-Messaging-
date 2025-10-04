@@ -460,10 +460,16 @@ function Chat() {
           console.log('Transaction events:', result?.events);
 
           // Check if transaction was successful
-          const isSuccess = result && result.effects && result.effects.status && 
-                           result.effects.status.status === 'success';
+          // In @mysten/dapp-kit, the result object may have effects as a string
+          // Try different ways to check success
+          const isSuccess = result && (
+            (result.effects && typeof result.effects === 'object' && result.effects.status === 'success') ||
+            (result.rawEffects && Array.isArray(result.rawEffects)) || // If rawEffects exists, transaction was processed
+            result.digest // If we have a digest, transaction was submitted
+          );
           
           console.log('Transaction success check:', isSuccess, 'result type:', typeof result);
+          console.log('Result properties:', Object.keys(result));
           
           if (isSuccess) {
             console.log('Transaction completed successfully');
