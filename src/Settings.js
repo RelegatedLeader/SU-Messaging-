@@ -12,6 +12,8 @@ function Settings() {
   const [currentName, setCurrentName] = useState("");
   const [registrationStatus, setRegistrationStatus] = useState(null);
   const [error, setError] = useState(null);
+  const [nameChangeCount, setNameChangeCount] = useState(0);
+  const [remainingFreeChanges, setRemainingFreeChanges] = useState(3);
   const [encryptMessages, setEncryptMessages] = useState(false);
   const [disableWalletPopup, setDisableWalletPopup] = useState(
     localStorage.getItem("disableWalletPopup") === "true"
@@ -40,6 +42,9 @@ function Settings() {
               new Uint8Array(userObject.data.content.fields.display_name)
             )
           : localStorage.getItem("currentDisplayName");
+        const changeCount = userObject?.data.content.fields.name_change_count || 0;
+        setNameChangeCount(changeCount);
+        setRemainingFreeChanges(Math.max(0, 3 - changeCount));
         setCurrentName(savedName || currentAccount.address.slice(0, 6) + "...");
         if (savedName) setDisplayName(savedName);
       }
@@ -62,9 +67,49 @@ function Settings() {
       const packageId =
         "0x3c7d131d38c117cbc75e3a8349ea3c841776ad6c6168e9590ba1fc4478018799";
 
+      // Get the user's User object
+      const client = new SuiClient({
+        url: "https://fullnode.mainnet.sui.io:443",
+      });
+      const objects = await client.getOwnedObjects({
+        owner: currentAccount.address,
+        options: { showType: true, showContent: true },
+      });
+      const userObject = objects.data.find((obj) =>
+        obj.data.type.includes(
+          "0x3c7d131d38c117cbc75e3a8349ea3c841776ad6c6168e9590ba1fc4478018799::su_messaging::User"
+        )
+      );
+
+      if (!userObject) {
+        setError("User profile not found. Please register first.");
+        return;
+      }
+
+      const userObjectId = userObject.data.objectId;
+
+      // If this is the 4th or more change, add payment
+      if (nameChangeCount >= 3) {
+        // Add 0.001 SUI payment to the specified address
+        tx.transferObjects(
+          [
+            tx.splitCoins(tx.gas, [
+              tx.pure(Math.floor(0.001 * 1e9)), // 0.001 SUI in MIST
+            ]),
+          ],
+          tx.pure(
+            "0xd1b0ff621a6803c8f0cd8051359ce312ece62b485e010e32b58a99d5ec13201c"
+          )
+        );
+      }
+
       tx.moveCall({
-        target: `${packageId}::su_messaging::register`,
-        arguments: [tx.pure(displayName, "string")],
+        target: `${packageId}::su_messaging::update_name`,
+        arguments: [
+          tx.object(userObjectId),
+          tx.pure(displayName, "vector<u8>"),
+          tx.object(tx.gas), // Pass gas coin for payment
+        ],
       });
 
       const result = await signAndExecuteTransactionBlock({
@@ -76,14 +121,16 @@ function Settings() {
 
       localStorage.setItem("currentDisplayName", displayName);
       setCurrentName(displayName);
+      setNameChangeCount(nameChangeCount + 1);
+      setRemainingFreeChanges(Math.max(0, 3 - (nameChangeCount + 1)));
       setRegistrationStatus(
-        displayName === currentName
-          ? "Profile updated!"
-          : "Registration successful!"
+        nameChangeCount >= 3
+          ? "Display name updated! (Paid change)"
+          : `Display name updated! (${2 - nameChangeCount} free changes remaining)`
       );
-      console.log("Registration/Update result:", result);
+      console.log("Name update result:", result);
     } catch (err) {
-      setError("Registration failed: " + err.message);
+      setError("Name update failed: " + err.message);
       console.error(err);
     }
   };
@@ -237,6 +284,15 @@ function Settings() {
           <Form.Group controlId="displayName">
             <Form.Label style={{ textShadow: "0 0 5px #ff00ff" }}>
               Update Display Name on SUI Blockchain
+              {remainingFreeChanges > 0 ? (
+                <div style={{ fontSize: "12px", color: "#00ffff", marginTop: "5px" }}>
+                  {remainingFreeChanges} free change{remainingFreeChanges !== 1 ? "s" : ""} remaining
+                </div>
+              ) : (
+                <div style={{ fontSize: "12px", color: "#ffd700", marginTop: "5px" }}>
+                  Next change requires 0.001 SUI payment
+                </div>
+              )}
             </Form.Label>
             <Form.Control
               type="text"
@@ -297,7 +353,7 @@ function Settings() {
               e.target.style.borderColor = "#ff00ff";
             }}
           >
-            {currentName ? "Update Profile" : "Register"}
+            {remainingFreeChanges > 0 ? "Update Name (Free)" : "Update Name (0.001 SUI)"}
           </Button>
         </Form>
         {registrationStatus && (

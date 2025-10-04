@@ -102,137 +102,147 @@ function Chat() {
     try {
       console.log('fetchMessages: starting fetch for conversation between', currentAccount.address, 'and', recipientAddress);
       const senderAddress = currentAccount.address;
-      let allEvents = [];
-      let cursor = null;
-      let retryCount = 0;
-      const maxRetries = 3;
-
-      while (retryCount < maxRetries) {
-        try {
-          // Try different query approaches
-          let response;
-          
-          // First try: query events by package
-          try {
-            response = await client.queryEvents({
-              query: { MoveModule: { package: packageId, module: "su_messaging" } },
-              limit: 20,
-              cursor,
-              order: "ascending",
-            });
-            console.log('Query by package/module successful, events:', response.data.length);
-          } catch (pkgError) {
-            console.log('Package query failed, trying All events:', pkgError.message);
-            // Fallback: query all events
-            response = await client.queryEvents({
-              query: { All: [] },
-              limit: 20,
-              cursor,
-              order: "ascending",
-            });
-          }
-          
-          console.log('All events received:', response.data.length);
-          console.log('Event types found:', [...new Set(response.data.map(e => e.type))]);
-          
-          // Filter for MessageCreated events from our package
-          const messageEvents = response.data.filter(event => 
-            event.type === `${packageId}::su_messaging::MessageCreated` ||
-            event.type.includes('MessageCreated')
-          );
-          
-          console.log('Filtered message events:', messageEvents.length);
-          console.log('Message event types:', messageEvents.map(e => e.type));
-          console.log('fetchMessages: found', messageEvents.length, 'message events');
-          allEvents = [...allEvents, ...messageEvents];
-          cursor = response.nextCursor;
-
-          // Break if we have events or no more pages
-          if (messageEvents.length > 0 || !response.hasNextPage) {
-            break;
-          }
-          
-          // Add delay between requests to avoid rate limits
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-        } catch (error) {
-          console.error(`Event query attempt ${retryCount + 1} failed:`, error);
-          retryCount++;
-          
-          if (retryCount < maxRetries) {
-            // Exponential backoff
-            await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
-          }
-        }
-      }
-
-      const fetchedMessages = [];
+      
+      // Try multiple approaches to fetch messages
+      
+      // Approach 1: Query for Message objects directly using dynamic field queries
+      let fetchedMessages = [];
       const seenIds = new Set();
       
-      for (const event of allEvents) {
-        const eventData = event.parsedJson || {};
-        console.log('Processing event:', event);
-        console.log('Event parsedJson:', eventData);
-        console.log('Event full structure:', JSON.stringify(event, null, 2));
+      try {
+        // Query events to find message IDs, then fetch the objects
+        const eventsResponse = await client.queryEvents({
+          query: { MoveModule: { package: packageId, module: "su_messaging" } },
+          limit: 50,
+          order: "descending", // Get most recent first
+        });
         
-        const { message_id, sender, recipient } = eventData;
-        if (!message_id || !sender || !recipient) {
-          console.log('Missing required fields in event:', { message_id, sender, recipient });
-          continue;
+        console.log('Events query successful, found', eventsResponse.data.length, 'events');
+        
+        // Filter for MessageCreated events
+        const messageEvents = eventsResponse.data.filter(event => 
+          event.type === `${packageId}::su_messaging::MessageCreated` ||
+          event.type.includes('MessageCreated')
+        );
+        
+        console.log('Found', messageEvents.length, 'MessageCreated events');
+        
+        for (const event of messageEvents) {
+          const eventData = event.parsedJson || {};
+          const { message_id, sender, recipient } = eventData;
+          
+          if (!message_id || !sender || !recipient) continue;
+          
+          // Only process messages between these two users
+          if (
+            (sender === senderAddress && recipient === recipientAddress) ||
+            (sender === recipientAddress && recipient === senderAddress)
+          ) {
+            try {
+              // Get the message object
+              const messageObject = await client.getObject({
+                id: message_id,
+                options: { showContent: true, showType: true },
+              });
+              
+              if (messageObject.data?.content?.fields && !seenIds.has(message_id)) {
+                const fields = messageObject.data.content.fields;
+                const timestampMs = Long.fromValue(fields.timestamp).toNumber();
+                const timestamp = new Date(timestampMs);
+                
+                // Decode the content
+                const content = new TextDecoder().decode(
+                  new Uint8Array(fields.encrypted_content || [])
+                );
+                
+                console.log('Fetched message:', {
+                  id: message_id,
+                  sender: fields.sender,
+                  recipient: fields.recipient,
+                  content: content,
+                  timestamp: timestamp
+                });
+                
+                fetchedMessages.push({
+                  id: message_id,
+                  sender: fields.sender,
+                  recipient: fields.recipient,
+                  content: content,
+                  timestamp: timestamp,
+                  timestampMs: timestampMs,
+                });
+                seenIds.add(message_id);
+              }
+            } catch (err) {
+              console.error('Failed to fetch message object:', message_id, err);
+            }
+          }
         }
+      } catch (eventError) {
+        console.error('Event-based fetching failed:', eventError);
         
-        // Only process messages between these two users
-        if (
-          (sender === senderAddress && recipient === recipientAddress) ||
-          (sender === recipientAddress && recipient === senderAddress)
-        ) {
+        // Approach 2: Fallback - try to query owned objects for both users
+        console.log('Trying fallback approach: query owned objects');
+        
+        const addressesToCheck = [senderAddress, recipientAddress];
+        
+        for (const address of addressesToCheck) {
           try {
-            // Get the message object directly using its ID
-            const messageObject = await client.getObject({
-              id: message_id,
-              options: { showContent: true, showType: true },
+            const ownedObjects = await client.getOwnedObjects({
+              owner: address,
+              options: { showType: true, showContent: true },
+              limit: 50,
             });
             
-            if (messageObject.data?.content?.fields && !seenIds.has(message_id)) {
-              const fields = messageObject.data.content.fields;
-              console.log('Message object fields:', fields);
-              console.log('Message object content type:', messageObject.data.content.type);
-              
-              const timestampMs = Long.fromValue(fields.timestamp).toNumber();
-              const timestamp = new Date(timestampMs);
-              
-              // Decode the content (stored as vector<u8> in the contract)
-              const content = new TextDecoder().decode(
-                new Uint8Array(fields.encrypted_content || [])
-              );
-              
-              console.log('Fetched message:', {
-                id: message_id,
-                sender: fields.sender,
-                recipient: fields.recipient,
-                content: content,
-                timestamp: timestamp
-              });
-              
-              fetchedMessages.push({
-                id: message_id,
-                sender: fields.sender,
-                recipient: fields.recipient,
-                content: content,
-                timestamp: timestamp,
-                timestampMs: timestampMs,
-              });
-              seenIds.add(message_id);
+            // Look for Message objects
+            const messageObjects = ownedObjects.data.filter(obj =>
+              obj.data?.type?.includes(`${packageId}::su_messaging::Message`)
+            );
+            
+            console.log(`Found ${messageObjects.length} Message objects owned by ${address.slice(0, 6)}...`);
+            
+            for (const obj of messageObjects) {
+              if (obj.data?.content?.fields && !seenIds.has(obj.data.objectId)) {
+                const fields = obj.data.content.fields;
+                
+                // Check if this message is between our two users
+                if (
+                  (fields.sender === senderAddress && fields.recipient === recipientAddress) ||
+                  (fields.sender === recipientAddress && fields.recipient === senderAddress)
+                ) {
+                  const timestampMs = Long.fromValue(fields.timestamp).toNumber();
+                  const timestamp = new Date(timestampMs);
+                  
+                  const content = new TextDecoder().decode(
+                    new Uint8Array(fields.encrypted_content || [])
+                  );
+                  
+                  fetchedMessages.push({
+                    id: obj.data.objectId,
+                    sender: fields.sender,
+                    recipient: fields.recipient,
+                    content: content,
+                    timestamp: timestamp,
+                    timestampMs: timestampMs,
+                  });
+                  seenIds.add(obj.data.objectId);
+                }
+              }
             }
-          } catch (err) {
-            console.error('Failed to fetch message object:', message_id, err);
-            // Continue processing other messages even if one fails
+          } catch (ownedError) {
+            console.error(`Failed to query owned objects for ${address}:`, ownedError);
           }
         }
       }
+      
+      // Sort messages by timestamp
+      fetchedMessages.sort((a, b) => a.timestampMs - b.timestampMs);
+      
+      console.log('Final fetched messages:', fetchedMessages.length);
+      
       // Preserve optimistically added messages that aren't yet confirmed on blockchain
       setMessages(prevMessages => {
-        const confirmedMessages = fetchedMessages.sort((a, b) => a.timestampMs - b.timestampMs);
+        const confirmedMessages = fetchedMessages;
         const optimisticMessages = prevMessages.filter(msg =>
           msg.id.startsWith('temp-') && !confirmedMessages.some(confirmed =>
             confirmed.sender === msg.sender &&
@@ -262,56 +272,44 @@ function Chat() {
     
     try {
       const senderAddress = currentAccount.address;
-      let allEvents = [];
-      let cursor = null;
-      let retryCount = 0;
-      const maxRetries = 3;
-
-      while (retryCount < maxRetries) {
-        try {
-          const response = await client.queryEvents({
-            query: { All: [] },
-            limit: 10, // Reduced limit to avoid rate limits
-            cursor,
-            order: "ascending",
-          });
-          
-          // Filter for MessageCreated events from our package
-          const messageEvents = response.data.filter(event => 
-            event.type === `${packageId}::su_messaging::MessageCreated` ||
-            event.type.includes('MessageCreated')
-          );
-          
-          allEvents = [...allEvents, ...messageEvents];
-          cursor = response.nextCursor;
-          
-          // Break if we have events or no more pages
-          if (messageEvents.length > 0 || !response.hasNextPage) {
-            break;
-          }
-          
-          // Add delay between requests to avoid rate limits
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-        } catch (error) {
-          console.error(`Event query attempt ${retryCount + 1} failed:`, error);
-          retryCount++;
-          
-          if (retryCount < maxRetries) {
-            // Exponential backoff
-            await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+      const recipients = new Set();
+      
+      // Try to get recent chats from events first
+      try {
+        const eventsResponse = await client.queryEvents({
+          query: { MoveModule: { package: packageId, module: "su_messaging" } },
+          limit: 20,
+          order: "descending",
+        });
+        
+        // Filter for MessageCreated events
+        const messageEvents = eventsResponse.data.filter(event => 
+          event.type === `${packageId}::su_messaging::MessageCreated` ||
+          event.type.includes('MessageCreated')
+        );
+        
+        for (const event of messageEvents) {
+          const { sender, recipient } = event.parsedJson || {};
+          if (sender === senderAddress) recipients.add(recipient);
+          else if (recipient === senderAddress) recipients.add(sender);
+        }
+      } catch (eventError) {
+        console.error('Event-based chat fetching failed:', eventError);
+        
+        // Fallback: check localStorage for recent conversations
+        console.log('Trying localStorage fallback for recent chats');
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith(`messages_${senderAddress}_`)) {
+            const recipientAddress = key.replace(`messages_${senderAddress}_`, '');
+            recipients.add(recipientAddress);
           }
         }
       }
 
-      const recipients = new Set();
-      for (const event of allEvents) {
-        const { sender, recipient } = event.parsedJson || {};
-        if (sender === senderAddress) recipients.add(recipient);
-        else if (recipient === senderAddress) recipients.add(sender);
-      }
-
       const recipientList = Array.from(recipients);
+      console.log('Found recent chat recipients:', recipientList);
+      
       const chatData = await Promise.all(
         recipientList.map(async (address) => ({
           address,
