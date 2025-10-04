@@ -3,7 +3,6 @@ import React, {
   useEffect,
   useRef,
   useCallback,
-  useMemo,
 } from "react";
 import {
   Container,
@@ -15,7 +14,7 @@ import {
   Alert,
 } from "react-bootstrap";
 import { useParams, useNavigate } from "react-router-dom";
-import { Transaction, Inputs } from "@mysten/sui/transactions";
+import { Transaction } from "@mysten/sui/transactions";
 import { bcs } from "@mysten/bcs";
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit";
 import Long from "long";
@@ -101,6 +100,12 @@ function Chat() {
     },
     [client, packageId]
   );
+
+  const scrollToBottom = useCallback(() => {
+    if (chatContentRef.current) {
+      chatContentRef.current.scrollTop = chatContentRef.current.scrollHeight;
+    }
+  }, []);
 
   const fetchMessages = useCallback(async () => {
     console.log('fetchMessages called with:', { isConnected, currentAccount: !!currentAccount, recipientAddress });
@@ -327,7 +332,8 @@ function Chat() {
       setError("Failed to fetch messages: " + err.message);
       console.error("Fetch error details:", err);
     }
-  }, [isConnected, currentAccount, recipientAddress, client]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConnected, currentAccount, recipientAddress, client, scrollToBottom, lastFetchTime]);
 
   const fetchRecentChats = useCallback(async () => {
     if (!isConnected || !currentAccount) return;
@@ -389,7 +395,7 @@ function Chat() {
     } catch (err) {
       console.error("Failed to fetch recent chats:", err);
     }
-  }, [isConnected, currentAccount, client, fetchUserName]);
+  }, [isConnected, currentAccount, client, fetchUserName, lastFetchTime]);
 
   useEffect(() => {
     console.log('useEffect triggered for fetchMessages with:', { isConnected, currentAccount: !!currentAccount, recipientAddress });
@@ -419,7 +425,7 @@ function Chat() {
       }, 100);
       return () => clearTimeout(timeoutId);
     }
-  }, [messages, isConnected, currentAccount?.address, recipientAddress]);
+  }, [messages, isConnected, currentAccount?.address, recipientAddress, scrollToBottom]);
 
   // Periodic check for message confirmations (less aggressive to avoid rate limits)
   useEffect(() => {
@@ -484,7 +490,8 @@ function Chat() {
         }
       }
     }
-  }, [isConnected, currentAccount?.address, recipientAddress]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConnected, currentAccount?.address, recipientAddress, currentAccount]);
 
   // Save messages to localStorage whenever messages change (only confirmed messages)
   useEffect(() => {
@@ -499,14 +506,14 @@ function Chat() {
       localStorage.setItem(storageKey, JSON.stringify(messagesToSave));
       console.log('Saved messages to localStorage:', messagesToSave.length, 'out of', messages.length);
     }
-  }, [messages, isConnected, currentAccount?.address, recipientAddress]);
+  }, [messages, isConnected, currentAccount?.address, recipientAddress, currentAccount]);
 
   // Clear messages when account changes to prevent cross-account contamination
   useEffect(() => {
     setMessages([]);
     setError(null);
     console.log('Cleared messages due to account change:', currentAccount?.address);
-  }, [currentAccount?.address]);
+  }, [currentAccount?.address, currentAccount]);
 
   // Clear messages when recipient changes
   useEffect(() => {
@@ -693,12 +700,6 @@ function Chat() {
         }
       });
   };
-
-  const scrollToBottom = useCallback(() => {
-    if (chatContentRef.current) {
-      chatContentRef.current.scrollTop = chatContentRef.current.scrollHeight;
-    }
-  }, []);
 
   // Scroll to bottom when messages change
   useEffect(() => {
