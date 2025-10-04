@@ -3,11 +3,21 @@ import ReactDOM from "react-dom/client";
 import "./index.css";
 import App from "./App";
 import reportWebVitals from "./reportWebVitals";
+import { SuiClientProvider, WalletProvider } from "@mysten/dapp-kit";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+const queryClient = new QueryClient();
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
   <React.StrictMode>
-    <App />
+    <QueryClientProvider client={queryClient}>
+      <SuiClientProvider networks={[{ id: 'mainnet', network: 'mainnet', rpcUrl: 'https://fullnode.mainnet.sui.io:443' }]}>
+        <WalletProvider enableUnsafeBurnerWallet={true}>
+          <App />
+        </WalletProvider>
+      </SuiClientProvider>
+    </QueryClientProvider>
   </React.StrictMode>
 );
 
