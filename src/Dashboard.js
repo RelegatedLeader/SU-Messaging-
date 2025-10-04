@@ -76,62 +76,40 @@ function Dashboard() {
             : address.slice(0, 6) + "...";
 
           let lastMessage = "No messages yet";
-          let hasNewMessages = false;
+          let lastMessageTime = 0;
 
-          const relevantEvents = allEvents.filter(
-            (event) =>
-              (event.parsedJson.sender === address &&
-                event.parsedJson.recipient === senderAddress) ||
-              (event.parsedJson.recipient === address &&
-                event.parsedJson.sender === senderAddress)
-          );
-          if (relevantEvents.length > 0) {
-            const latestEvent = relevantEvents.sort(
-              (a, b) =>
-                Number(b.parsedJson.timestamp) - Number(a.parsedJson.timestamp)
-            )[0];
-            const [senderObjects, recipientObjects] = await Promise.all([
-              client.getOwnedObjects({
-                owner: senderAddress,
-                filter: {
-                  MatchAll: [{ StructType: `${packageId}::su_messaging::Message` }],
-                },
-                options: { showContent: true, showType: true },
-              }),
-              client.getOwnedObjects({
-                owner: address,
-                filter: {
-                  MatchAll: [{ StructType: `${packageId}::su_messaging::Message` }],
-                },
-                options: { showContent: true, showType: true },
-              }),
-            ]);
-
-            const allObjects = [
-              ...senderObjects.data,
-              ...recipientObjects.data,
-            ];
-            const latestTimestamp = latestEvent.parsedJson.timestamp
-              ? Long.fromValue(latestEvent.parsedJson.timestamp).toNumber()
-              : 0; // Fallback if timestamp is invalid
-            for (const obj of allObjects) {
-              const fields = obj.data?.content?.fields;
-              if (
-                fields &&
-                ((fields.sender === senderAddress &&
-                  fields.recipient === address) ||
-                  (fields.sender === address &&
-                    fields.recipient === senderAddress))
-              ) {
-                const timestampMs = fields.timestamp
-                  ? Long.fromValue(fields.timestamp).toNumber()
-                  : 0; // Fallback for invalid timestamp
-                if (timestampMs >= latestTimestamp) {
-                  lastMessage = new TextDecoder().decode(
-                    new Uint8Array(fields.content)
-                  );
-                  hasNewMessages = !fields.is_read; // Sync with Chat.js
+          // Find the most recent message in this conversation from the events
+          for (const event of allEvents) {
+            const eventData = event.parsedJson || {};
+            const { sender, recipient, message_id, timestamp } = eventData;
+            
+            // Check if this event is part of our conversation
+            const isOurConversation = 
+              (sender === senderAddress && recipient === address) ||
+              (sender === address && recipient === senderAddress);
+            
+            if (isOurConversation && timestamp && message_id) {
+              const messageTime = Long.fromValue(timestamp).toNumber();
+              if (messageTime > lastMessageTime) {
+                try {
+                  // Fetch the message object to get the content
+                  const messageObject = await client.getObject({
+                    id: message_id,
+                    options: { showContent: true },
+                  });
+                  
+                  if (messageObject.data?.content?.fields?.encrypted_content) {
+                    lastMessage = new TextDecoder().decode(
+                      new Uint8Array(messageObject.data.content.fields.encrypted_content)
+                    );
+                  } else {
+                    lastMessage = "No content available";
+                  }
+                } catch (error) {
+                  console.error('Failed to fetch message content:', error);
+                  lastMessage = "Error loading message";
                 }
+                lastMessageTime = messageTime;
               }
             }
           }
@@ -140,7 +118,6 @@ function Dashboard() {
             address,
             displayName,
             lastMessage,
-            hasNewMessages,
           };
         })
       );
@@ -193,31 +170,32 @@ function Dashboard() {
     <Container
       className="mt-3"
       style={{
-        maxWidth: "1200px",
-        maxHeight: "90vh",
+        maxWidth: "800px", // Reduced from 1200px
+        maxHeight: "80vh", // Reduced from 90vh
         height: "auto",
         display: "flex",
         flexDirection: "column",
-        gap: "10px",
+        gap: "8px", // Reduced gap
         background: "linear-gradient(135deg, #1a0033, #440088)",
-        border: `5px solid ${menuColor}`,
-        borderRadius: "15px",
-        boxShadow: "0 0 25px rgba(0, 255, 255, 0.8)",
+        border: `3px solid ${menuColor}`, // Thinner border
+        borderRadius: "10px", // Smaller radius
+        boxShadow: "0 0 18px rgba(0, 255, 255, 0.6)", // Smaller shadow
         fontFamily: "Orbitron, sans-serif",
         color: "#00ffff",
-        padding: "15px",
+        padding: "10px", // Reduced padding
         overflow: "auto",
       }}
     >
       <h2
         className="text-center"
         style={{
-          textShadow: "0 0 18px #00ffff",
-          marginBottom: "10px",
+          textShadow: "0 0 15px #00ffff", // Smaller shadow
+          marginBottom: "8px", // Reduced margin
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          gap: "10px",
+          gap: "8px", // Reduced gap
+          fontSize: "20px", // Smaller font
         }}
       >
         Dashboard
@@ -225,22 +203,21 @@ function Dashboard() {
       <div
         style={{
           display: "flex",
-          flexWrap: "wrap",
-          gap: "15px",
+          gap: "10px", // Reduced gap
           justifyContent: "space-between",
-          minHeight: "500px",
+          minHeight: "400px", // Reduced height
         }}
       >
         <Form
           onSubmit={handleStartChat}
           style={{
-            flex: "1 1 400px",
-            minWidth: "300px",
+            flex: "1 1 300px", // More constrained width for left side
+            minWidth: "250px", // Reduced min width
             border: `2px solid ${menuColor}`,
-            padding: "10px",
-            borderRadius: "8px",
+            padding: "8px", // Reduced padding
+            borderRadius: "6px", // Smaller radius
             background: "linear-gradient(135deg, #1a0033, #330066)",
-            boxShadow: "0 0 15px rgba(0, 255, 255, 0.5)",
+            boxShadow: "0 0 12px rgba(0, 255, 255, 0.4)", // Smaller shadow
           }}
         >
           <Form.Group controlId="recipientAddress">
@@ -257,10 +234,10 @@ function Dashboard() {
                 backgroundColor: "white",
                 color: "black",
                 border: `1px dashed ${menuColor}`,
-                borderRadius: "5px",
-                padding: "8px",
-                fontSize: "14px",
-                textShadow: "0 0 3px #ccffcc",
+                borderRadius: "4px", // Smaller radius
+                padding: "6px", // Reduced padding
+                fontSize: "12px", // Smaller font
+                textShadow: "0 0 2px #ccffcc", // Smaller shadow
                 transition: "border-color 0.4s",
               }}
             />
@@ -272,12 +249,12 @@ function Dashboard() {
             style={{
               backgroundColor: menuColor,
               borderColor: menuColor,
-              textShadow: "0 0 6px #00ffff",
-              padding: "8px 15px",
-              fontSize: "14px",
+              textShadow: "0 0 5px #00ffff", // Smaller shadow
+              padding: "6px 12px", // Reduced padding
+              fontSize: "12px", // Smaller font
               transition: "background-color 0.4s",
               width: "100%",
-              borderRadius: "5px",
+              borderRadius: "4px", // Smaller radius
             }}
             onMouseEnter={(e) => (e.target.style.backgroundColor = "#00ffff")}
             onMouseLeave={(e) => (e.target.style.backgroundColor = menuColor)}
@@ -287,16 +264,16 @@ function Dashboard() {
         </Form>
         <div
           style={{
-            flex: "2 1 600px",
-            minWidth: "300px",
+            flex: "2 1 400px", // More space for right side
+            minWidth: "300px", // Adequate min width
             display: "flex",
             flexDirection: "column",
-            gap: "10px",
+            gap: "8px", // Reduced gap
           }}
         >
           <InputGroup
             style={{
-              height: "38px", // Matches typical Bootstrap input height
+              height: "32px", // Reduced height
             }}
           >
             <Form.Control
@@ -308,12 +285,12 @@ function Dashboard() {
                 backgroundColor: "white",
                 color: "black",
                 border: `1px dashed ${menuColor}`,
-                borderRadius: "5px",
-                padding: "8px",
-                fontSize: "14px",
-                textShadow: "0 0 3px #ccffcc",
+                borderRadius: "4px", // Smaller radius
+                padding: "6px", // Reduced padding
+                fontSize: "12px", // Smaller font
+                textShadow: "0 0 2px #ccffcc", // Smaller shadow
                 transition: "border-color 0.4s",
-                height: "38px", // Matches typical Bootstrap input height
+                height: "32px", // Reduced height
               }}
             />
           </InputGroup>
@@ -322,7 +299,7 @@ function Dashboard() {
               overflow: "auto", // Keep scroll for overflow
             }}
           >
-            <h4 style={{ textShadow: "0 0 12px #00ffff", marginBottom: "5px" }}>
+            <h4 style={{ textShadow: "0 0 10px #00ffff", marginBottom: "4px", fontSize: "14px" }}>
               Recent Chats
             </h4>
             {filteredChats.length === 0 ? (
@@ -332,8 +309,8 @@ function Dashboard() {
                 style={{
                   background: "rgba(0, 0, 0, 0.5)",
                   border: `2px solid ${menuColor}`,
-                  borderRadius: "5px",
-                  boxShadow: "0 0 15px rgba(0, 255, 255, 0.5)",
+                  borderRadius: "4px", // Smaller radius
+                  boxShadow: "0 0 12px rgba(0, 255, 255, 0.4)", // Smaller shadow
                 }}
               >
                 {filteredChats.map((chat, index) => (
@@ -343,7 +320,7 @@ function Dashboard() {
                       backgroundColor: "#1a0033",
                       color: "#00ffff",
                       position: "relative",
-                      padding: "8px",
+                      padding: "6px", // Reduced padding
                       display: "flex",
                       flexDirection: "column",
                       borderBottom: `1px dashed ${menuColor}`,
@@ -360,40 +337,28 @@ function Dashboard() {
                       style={{
                         display: "flex",
                         alignItems: "center",
-                        gap: "10px",
+                        gap: "8px", // Reduced gap
                       }}
                     >
                       <span
                         style={{
-                          width: "10px",
-                          height: "10px",
-                          backgroundColor: chat.isActive
-                            ? "#00ff00"
-                            : "#808080",
+                          width: "8px", // Smaller indicator
+                          height: "8px", // Smaller indicator
+                          backgroundColor: "#00ff00", // Always green for active chats
                           borderRadius: "50%",
                           border: `1px solid ${menuColor}`,
                         }}
                       />
                       <Link
                         to={`/chat/${chat.address}`}
-                        onClick={() => {
-                          if (chat.hasNewMessages) {
-                            setRecentChats((prevChats) =>
-                              prevChats.map((c) =>
-                                c.address === chat.address
-                                  ? { ...c, hasNewMessages: false }
-                                  : c
-                              )
-                            );
-                          }
-                        }}
                         style={{
                           color: "#00ffff",
                           textDecoration: "none",
                           fontWeight: "bold",
-                          marginBottom: "5px",
-                          textShadow: "0 0 5px #ff00ff",
+                          marginBottom: "3px", // Reduced margin
+                          textShadow: "0 0 4px #ff00ff", // Smaller shadow
                           flex: "1",
+                          fontSize: "12px", // Smaller font
                         }}
                       >
                         {chat.displayName}
@@ -403,31 +368,18 @@ function Dashboard() {
                       style={{
                         color: "#00ffff",
                         fontWeight: "normal",
-                        padding: "5px",
+                        padding: "4px", // Reduced padding
                         backgroundColor: "#330066",
-                        borderRadius: "5px",
+                        borderRadius: "3px", // Smaller radius
                         maxWidth: "80%",
                         wordWrap: "break-word",
                         border: `1px dashed ${menuColor}`,
-                        boxShadow: "0 0 10px rgba(0, 255, 255, 0.5)",
+                        boxShadow: "0 0 8px rgba(0, 255, 255, 0.4)", // Smaller shadow
+                        fontSize: "10px", // Smaller font
                       }}
                     >
                       {chat.lastMessage || "No message content available"}
                     </div>
-                    {chat.hasNewMessages && (
-                      <span
-                        style={{
-                          position: "absolute",
-                          top: "5px",
-                          right: "5px",
-                          width: "10px",
-                          height: "10px",
-                          backgroundColor: menuColor,
-                          borderRadius: "50%",
-                          boxShadow: "0 0 5px #00ffff",
-                        }}
-                      />
-                    )}
                   </ListGroup.Item>
                 ))}
               </ListGroup>
