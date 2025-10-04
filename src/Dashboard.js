@@ -18,6 +18,7 @@ function Dashboard() {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [menuColor, setMenuColor] = useState("#ff00ff"); // Sync with App.js default
+  const [isLoadingChats, setIsLoadingChats] = useState(false);
   const navigate = useNavigate();
   const currentAccount = useCurrentAccount();
   const isConnected = !!currentAccount;
@@ -29,6 +30,7 @@ function Dashboard() {
   const fetchRecentChats = useCallback(async () => {
     if (!isConnected || !currentAccount) return;
 
+    setIsLoadingChats(true);
     try {
       const senderAddress = currentAccount.address;
       const packageId =
@@ -126,6 +128,8 @@ function Dashboard() {
     } catch (err) {
       setError("Failed to fetch recent chats: " + err.message);
       console.error(err);
+    } finally {
+      setIsLoadingChats(false);
     }
   }, [isConnected, currentAccount, client]);
 
@@ -302,7 +306,89 @@ function Dashboard() {
             <h4 style={{ textShadow: "0 0 10px #00ffff", marginBottom: "4px", fontSize: "14px" }}>
               Recent Chats
             </h4>
-            {filteredChats.length === 0 ? (
+            {isLoadingChats ? (
+              <div
+                style={{
+                  background: "rgba(0, 0, 0, 0.5)",
+                  border: `2px solid ${menuColor}`,
+                  borderRadius: "4px",
+                  padding: "20px",
+                  textAlign: "center",
+                  boxShadow: "0 0 12px rgba(0, 255, 255, 0.4)",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: "16px",
+                    color: "#00ffff",
+                    textShadow: "0 0 8px #00ffff",
+                    marginBottom: "15px",
+                    fontWeight: "bold",
+                  }}
+                >
+                  🔄 ITERATING THROUGH THE BLOCKCHAIN
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    gap: "10px",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "8px",
+                      height: "8px",
+                      backgroundColor: menuColor,
+                      borderRadius: "50%",
+                      animation: "blockchainPulse 1.5s ease-in-out infinite",
+                    }}
+                  />
+                  <div
+                    style={{
+                      width: "8px",
+                      height: "8px",
+                      backgroundColor: menuColor,
+                      borderRadius: "50%",
+                      animation: "blockchainPulse 1.5s ease-in-out infinite 0.2s",
+                    }}
+                  />
+                  <div
+                    style={{
+                      width: "8px",
+                      height: "8px",
+                      backgroundColor: menuColor,
+                      borderRadius: "50%",
+                      animation: "blockchainPulse 1.5s ease-in-out infinite 0.4s",
+                    }}
+                  />
+                </div>
+                <div
+                  style={{
+                    marginTop: "15px",
+                    fontSize: "12px",
+                    color: "#00ffff",
+                    opacity: 0.8,
+                  }}
+                >
+                  Scanning blockchain for your messages...
+                </div>
+                <style>{`
+                  @keyframes blockchainPulse {
+                    0%, 100% {
+                      opacity: 0.3;
+                      transform: scale(1);
+                    }
+                    50% {
+                      opacity: 1;
+                      transform: scale(1.2);
+                      box-shadow: 0 0 10px ${menuColor};
+                    }
+                  }
+                `}</style>
+              </div>
+            ) : filteredChats.length === 0 ? (
               <p style={{ color: "#00ffff" }}>No recent chats yet.</p>
             ) : (
               <ListGroup
