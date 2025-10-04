@@ -170,6 +170,7 @@ function Chat() {
                   content: content,
                   timestamp: timestamp,
                   timestampMs: timestampMs,
+                  clientTimestampMs: timestampMs, // For fetched messages, use blockchain timestamp as client timestamp
                 });
                 seenIds.add(message_id);
               }
@@ -224,6 +225,7 @@ function Chat() {
                     content: content,
                     timestamp: timestamp,
                     timestampMs: timestampMs,
+                    clientTimestampMs: timestampMs, // For fetched messages, use blockchain timestamp as client timestamp
                   });
                   seenIds.add(obj.data.objectId);
                 }
@@ -238,21 +240,69 @@ function Chat() {
       // Sort messages by timestamp
       fetchedMessages.sort((a, b) => a.timestampMs - b.timestampMs);
       
-      console.log('Final fetched messages:', fetchedMessages.length);
-      
-      // Preserve optimistically added messages that aren't yet confirmed on blockchain
+      // Merge confirmed messages with optimistic messages, removing duplicates
       setMessages(prevMessages => {
         const confirmedMessages = fetchedMessages;
-        const optimisticMessages = prevMessages.filter(msg =>
-          msg.id.startsWith('temp-') && !confirmedMessages.some(confirmed =>
-            confirmed.sender === msg.sender &&
-            confirmed.recipient === msg.recipient &&
-            confirmed.content === msg.content &&
-            Math.abs(confirmed.timestampMs - msg.timestampMs) < 5000 // Within 5 seconds
+        
+        // Separate optimistic messages from confirmed ones
+        const optimisticMessages = prevMessages.filter(msg => msg.id.startsWith('temp-'));
+        const existingConfirmedMessages = prevMessages.filter(msg => !msg.id.startsWith('temp-'));
+        
+        // Remove optimistic messages that have been confirmed (using client timestamps)
+        const remainingOptimisticMessages = optimisticMessages.filter(optimistic => 
+          !confirmedMessages.some(confirmed =>
+            confirmed.sender === optimistic.sender &&
+            confirmed.recipient === optimistic.recipient &&
+            confirmed.content.trim() === optimistic.content.trim() &&
+            Math.abs((confirmed.clientTimestampMs || confirmed.timestampMs) - (optimistic.clientTimestampMs || optimistic.timestampMs)) < 60000 // Within 1 minute
           )
         );
-
-        return [...confirmedMessages, ...optimisticMessages].sort((a, b) => a.timestampMs - b.timestampMs);
+        
+        // Combine all messages
+        const allMessages = [...existingConfirmedMessages, ...confirmedMessages, ...remainingOptimisticMessages];
+        
+        // Aggressive deduplication: remove messages that are clearly duplicates
+        const uniqueMessages = [];
+        const messageMap = new Map(); // key -> best message
+        
+        for (const message of allMessages) {
+          const clientTime = message.clientTimestampMs || message.timestampMs;
+          const key = `${message.sender}-${message.recipient}-${message.content.trim()}`;
+          
+          if (messageMap.has(key)) {
+            const existing = messageMap.get(key);
+            const existingTime = existing.clientTimestampMs || existing.timestampMs;
+            
+            // If timestamps are very close (within 30 seconds), prefer confirmed over optimistic
+            if (Math.abs(clientTime - existingTime) < 30000) {
+              if (message.status === 'confirmed' && existing.status !== 'confirmed') {
+                messageMap.set(key, message); // Replace with confirmed
+              } else if (message.status !== 'confirmed' && existing.status === 'confirmed') {
+                // Keep existing confirmed message
+              } else {
+                // Same status, keep the one with more recent timestamp
+                if (clientTime > existingTime) {
+                  messageMap.set(key, message);
+                }
+              }
+            } else {
+              // Different timestamps, keep both (not duplicates)
+              uniqueMessages.push(message);
+            }
+          } else {
+            messageMap.set(key, message);
+          }
+        }
+        
+        // Convert map back to array
+        messageMap.forEach(message => uniqueMessages.push(message));
+        
+        // Sort by client timestamp (when send button was clicked)
+        return uniqueMessages.sort((a, b) => {
+          const timeA = a.clientTimestampMs || a.timestampMs;
+          const timeB = b.clientTimestampMs || b.timestampMs;
+          return timeA - timeB;
+        });
       });
     } catch (err) {
       setError("Failed to fetch messages: " + err.message);
@@ -365,11 +415,21 @@ function Chat() {
       const storedMessages = localStorage.getItem(storageKey);
       if (storedMessages) {
         try {
-          const parsedMessages = JSON.parse(storedMessages).map(msg => ({
-            ...msg,
-            timestamp: msg.timestamp instanceof Date ? msg.timestamp : new Date(msg.timestamp),
-            timestampMs: msg.timestampMs || Date.parse(msg.timestamp)
-          }));
+          const parsedMessages = JSON.parse(storedMessages)
+            .map(msg => ({
+              ...msg,
+              timestamp: msg.timestamp instanceof Date ? msg.timestamp : new Date(msg.timestamp),
+              timestampMs: msg.timestampMs || Date.parse(msg.timestamp),
+              clientTimestampMs: msg.clientTimestampMs || msg.timestampMs || Date.parse(msg.timestamp), // Ensure clientTimestampMs exists
+            }))
+            .filter(msg => {
+              // Filter out old optimistic messages (older than 5 minutes)
+              if (msg.id.startsWith('temp-') && Date.now() - (msg.clientTimestampMs || msg.timestampMs) > 300000) {
+                return false;
+              }
+              return true;
+            });
+          
           setMessages(parsedMessages);
           console.log('Loaded messages from localStorage:', parsedMessages.length);
           // Scroll to bottom after loading messages
@@ -381,12 +441,18 @@ function Chat() {
     }
   }, [isConnected, currentAccount?.address, recipientAddress]);
 
-  // Save messages to localStorage whenever messages change
+  // Save messages to localStorage whenever messages change (only confirmed messages)
   useEffect(() => {
     if (isConnected && currentAccount && recipientAddress && messages.length > 0) {
       const storageKey = `messages_${currentAccount.address}_${recipientAddress}`;
-      localStorage.setItem(storageKey, JSON.stringify(messages));
-      console.log('Saved messages to localStorage:', messages.length);
+      // Only save confirmed messages and recent optimistic ones
+      const messagesToSave = messages.filter(msg => 
+        !msg.id.startsWith('temp-') || // Confirmed messages
+        (msg.id.startsWith('temp-') && Date.now() - msg.timestampMs < 60000) // Recent optimistic (1 minute)
+      );
+      
+      localStorage.setItem(storageKey, JSON.stringify(messagesToSave));
+      console.log('Saved messages to localStorage:', messagesToSave.length, 'out of', messages.length);
     }
   }, [messages, isConnected, currentAccount?.address, recipientAddress]);
 
@@ -434,13 +500,15 @@ function Chat() {
       });
       
       // Add message with 'sending' status immediately
+      const clientTimestamp = Date.now();
       const tempMessage = {
         id: tempId,
         sender: currentAccount.address,
         recipient: recipientAddress,
         content: cleanedMessage,
-        timestamp: new Date(),
-        timestampMs: Date.now(),
+        timestamp: new Date(clientTimestamp),
+        timestampMs: clientTimestamp,
+        clientTimestampMs: clientTimestamp, // Preserve original send time for ordering
         status: 'sending',
       };
       setMessages(prevMessages => [...prevMessages, tempMessage]);
@@ -511,11 +579,12 @@ function Chat() {
                 msg.id === tempId 
                   ? {
                       ...msg,
-                      id: messageId || msg.id,
+                      id: messageId || `confirmed-${Date.now()}`, // Use confirmed ID or generate one
                       sender: eventSender || msg.sender,
                       recipient: eventRecipient || msg.recipient,
+                      // Keep original client timestamp for ordering, but update display timestamp if blockchain has it
                       timestamp: eventTimestamp ? new Date(Long.fromValue(eventTimestamp).toNumber()) : msg.timestamp,
-                      timestampMs: eventTimestamp || msg.timestampMs,
+                      blockchainTimestampMs: eventTimestamp ? Long.fromValue(eventTimestamp).toNumber() : null,
                       status: 'confirmed'
                     }
                   : msg
@@ -524,8 +593,8 @@ function Chat() {
 
             setSendStatus(false);
             setMessage("");
-            // Fetch messages in background to confirm the transaction
-            setTimeout(() => fetchMessages(), 1000);
+            // Don't fetch immediately - let the periodic fetch handle confirmation
+            // setTimeout(() => fetchMessages(), 1000);
           } else {
             console.error('Transaction failed or result undefined:', result);
             // Mark as failed
