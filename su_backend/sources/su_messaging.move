@@ -5,6 +5,8 @@ module su_backend::su_messaging {
     use sui::clock;
     use sui::event;
     use sui::bcs;
+    use sui::coin::{Self, Coin};
+    use sui::sui::SUI;
     use std::vector;
     use std::string;
     use std::option;
@@ -15,6 +17,7 @@ module su_backend::su_messaging {
         wallet: address,
         display_name: vector<u8>,
         encryption_key: vector<u8>, // Shared key hash (simplified placeholder)
+        name_change_count: u64, // Track number of name changes for payment logic
     }
 
     // Admin capability for name updates
@@ -81,6 +84,7 @@ module su_backend::su_messaging {
             wallet: tx_context::sender(ctx),
             display_name: b"Anonymous",
             encryption_key: bcs::to_bytes(&tx_context::sender(ctx)), // Placeholder key
+            name_change_count: 0, // Initialize name change count
         };
         let admin_cap = AdminCap {
             id: object::new(ctx),
@@ -89,18 +93,33 @@ module su_backend::su_messaging {
         transfer::transfer(admin_cap, tx_context::sender(ctx));
     }
 
-    // Update display name (requires AdminCap or sender match)
+    // Update display name with payment logic (free for first 3 changes, then requires payment)
     public entry fun update_name(
         user: &mut User,
         new_name: vector<u8>,
-        admin_cap: &AdminCap,
+        payment: Coin<SUI>,
         ctx: &mut tx_context::TxContext
     ) {
-        assert!(
-            tx_context::sender(ctx) == user.wallet || object::uid_to_address(&admin_cap.id) == tx_context::sender(ctx),
-            0
-        );
+        // Assert sender owns the user object
+        assert!(tx_context::sender(ctx) == user.wallet, 0);
+
+        // Check if this is a free change (first 3 changes) or requires payment
+        if (user.name_change_count >= 3) {
+            // After 3 free changes, require minimum payment of 0.001 SUI to specific address
+            let payment_amount = coin::value(&payment);
+            assert!(payment_amount >= 1000000, 1); // 0.001 SUI in MIST (1e6)
+
+            // Transfer payment to the specified address
+            transfer::public_transfer(payment, @0xd1b0ff621a6803c8f0cd8051359ce312ece62b485e010e32b58a99d5ec13201c);
+        } else {
+            // For free changes, just destroy the zero payment coin
+            coin::destroy_zero(payment);
+        };
+
+        // Update the display name
         user.display_name = new_name;
+        user.name_change_count = user.name_change_count + 1;
+
         event::emit(NameUpdated {
             user: user.wallet,
             new_name: user.display_name,
@@ -270,6 +289,11 @@ module su_backend::su_messaging {
     // Get user's display name
     public fun get_display_name(user: &User): &vector<u8> {
         &user.display_name
+    }
+
+    // Get user's name change count
+    public fun get_name_change_count(user: &User): u64 {
+        user.name_change_count
     }
 
     // Get message details
