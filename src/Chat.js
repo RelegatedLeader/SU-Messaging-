@@ -367,9 +367,15 @@ function Chat() {
       const storedMessages = localStorage.getItem(storageKey);
       if (storedMessages) {
         try {
-          const parsedMessages = JSON.parse(storedMessages);
+          const parsedMessages = JSON.parse(storedMessages).map(msg => ({
+            ...msg,
+            timestamp: msg.timestamp instanceof Date ? msg.timestamp : new Date(msg.timestamp),
+            timestampMs: msg.timestampMs || Date.parse(msg.timestamp)
+          }));
           setMessages(parsedMessages);
           console.log('Loaded messages from localStorage:', parsedMessages.length);
+          // Scroll to bottom after loading messages
+          setTimeout(() => scrollToBottom(), 100);
         } catch (error) {
           console.error('Failed to parse stored messages:', error);
         }
@@ -385,6 +391,11 @@ function Chat() {
       console.log('Saved messages to localStorage:', messages.length);
     }
   }, [messages, isConnected, currentAccount?.address, recipientAddress]);
+
+  // Scroll to bottom when messages change or component mounts
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   const handleSend = async (e) => {
     e.preventDefault();
