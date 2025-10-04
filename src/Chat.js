@@ -402,6 +402,17 @@ function Chat() {
     fetchUserName,
   ]);
 
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    if (messages.length > 0) {
+      // Small delay to ensure DOM has updated
+      const timeoutId = setTimeout(() => {
+        scrollToBottom();
+      }, 100);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [messages, isConnected, currentAccount?.address, recipientAddress]);
+
   // Periodic check for message confirmations (less aggressive to avoid rate limits)
   useEffect(() => {
     if (!isConnected || !messages.some(msg => msg.id.startsWith('temp-'))) {
@@ -675,11 +686,22 @@ function Chat() {
       });
   };
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     if (chatContentRef.current) {
       chatContentRef.current.scrollTop = chatContentRef.current.scrollHeight;
     }
-  };
+  }, []);
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    if (messages.length > 0) {
+      // Small delay to ensure DOM has updated
+      const timeoutId = setTimeout(() => {
+        scrollToBottom();
+      }, 100);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [messages, scrollToBottom]);
 
   return (
     <Container
