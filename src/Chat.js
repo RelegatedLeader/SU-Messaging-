@@ -390,12 +390,11 @@ function Chat() {
     e.preventDefault();
     if (!message.trim() || !isConnected) return;
 
+    const tempId = `temp-${Date.now()}`;
     setSendStatus(true);
     try {
       console.log("Sending message to:", recipientAddress);
       console.log("Current account:", currentAccount?.address);
-
-      const tempId = `temp-${Date.now()}`;
       
       // Add message with 'sending' status immediately
       const tempMessage = {
@@ -500,7 +499,7 @@ function Chat() {
                   id: messageId || msg.id,
                   sender: eventSender || msg.sender,
                   recipient: eventRecipient || msg.recipient,
-                  timestamp: eventTimestamp ? new Date(Number(eventTimestamp)) : msg.timestamp,
+                  timestamp: eventTimestamp ? new Date(Long.fromValue(eventTimestamp).toNumber()) : msg.timestamp,
                   timestampMs: eventTimestamp || msg.timestampMs,
                   status: 'confirmed'
                 }
