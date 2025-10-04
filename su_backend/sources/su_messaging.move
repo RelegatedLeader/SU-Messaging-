@@ -93,8 +93,30 @@ module su_backend::su_messaging {
         transfer::transfer(admin_cap, tx_context::sender(ctx));
     }
 
-    // Update display name with payment logic (free for first 3 changes, then requires payment)
-    public entry fun update_name(
+    // Update display name for free (first 3 changes)
+    public entry fun update_name_free(
+        user: &mut User,
+        new_name: vector<u8>,
+        ctx: &mut tx_context::TxContext
+    ) {
+        // Assert sender owns the user object
+        assert!(tx_context::sender(ctx) == user.wallet, 0);
+
+        // Assert this is a free change
+        assert!(user.name_change_count < 3, 1);
+
+        // Update the display name
+        user.display_name = new_name;
+        user.name_change_count = user.name_change_count + 1;
+
+        event::emit(NameUpdated {
+            user: user.wallet,
+            new_name: user.display_name,
+        });
+    }
+
+    // Update display name with payment (after 3 free changes)
+    public entry fun update_name_paid(
         user: &mut User,
         new_name: vector<u8>,
         payment: Coin<SUI>,
@@ -103,18 +125,15 @@ module su_backend::su_messaging {
         // Assert sender owns the user object
         assert!(tx_context::sender(ctx) == user.wallet, 0);
 
-        // Check if this is a free change (first 3 changes) or requires payment
-        if (user.name_change_count >= 3) {
-            // After 3 free changes, require minimum payment of 0.001 SUI to specific address
-            let payment_amount = coin::value(&payment);
-            assert!(payment_amount >= 1000000, 1); // 0.001 SUI in MIST (1e6)
+        // Assert this requires payment
+        assert!(user.name_change_count >= 3, 2);
 
-            // Transfer payment to the specified address
-            transfer::public_transfer(payment, @0xd1b0ff621a6803c8f0cd8051359ce312ece62b485e010e32b58a99d5ec13201c);
-        } else {
-            // For free changes, just destroy the zero payment coin
-            coin::destroy_zero(payment);
-        };
+        // Require minimum payment of 0.001 SUI
+        let payment_amount = coin::value(&payment);
+        assert!(payment_amount >= 1000000, 3); // 0.001 SUI in MIST
+
+        // Transfer payment to the specified address
+        transfer::public_transfer(payment, @0xd1b0ff621a6803c8f0cd8051359ce312ece62b485e010e32b58a99d5ec13201c);
 
         // Update the display name
         user.display_name = new_name;
