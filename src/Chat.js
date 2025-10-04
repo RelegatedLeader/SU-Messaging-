@@ -575,17 +575,17 @@ function Chat() {
     <Container
       className="mt-5"
       style={{
-        maxWidth: "1200px",
-        minHeight: "600px", // Fixed minimum height for one-size-fits-all
+        maxWidth: "900px",
+        minHeight: "500px", // Reduced minimum height
         display: "flex",
         flexDirection: "column",
         background: "linear-gradient(135deg, #1a0033, #330066)",
-        border: "5px solid #ff00ff",
-        borderRadius: "10px",
-        boxShadow: "0 0 20px #00ffff",
+        border: "4px solid #ff00ff", // Slightly thinner border
+        borderRadius: "8px", // Slightly smaller radius
+        boxShadow: "0 0 15px #00ffff", // Slightly smaller shadow
         fontFamily: "Orbitron, sans-serif",
         color: "#00ffff",
-        padding: "10px",
+        padding: "8px", // Reduced padding
       }}
     >
       {sendStatus && (
@@ -629,7 +629,7 @@ function Chat() {
         }}
       >
         <Col
-          md={3}
+          md={2} // Narrower sidebar
           style={{
             backgroundColor: "#1a0033",
             minHeight: "100%",
@@ -645,8 +645,8 @@ function Chat() {
               position: "sticky",
               top: "0",
               backgroundColor: "#330066",
-              padding: "10px 0",
-              height: "60px",
+              padding: "8px 0", // Reduced padding
+              height: "50px", // Reduced height
               display: "flex",
               justifyContent: "center",
               alignItems: "center",
@@ -684,11 +684,11 @@ function Chat() {
                   color:
                     chat.address === recipientAddress ? "#330066" : "#00ffff",
                   borderBottom: "1px dashed #ff00ff",
-                  padding: "10px",
+                  padding: "6px", // Reduced padding
                   transition: "background-color 0.3s",
                   cursor: "pointer",
-                  fontSize: "16px",
-                  textShadow: "0 0 5px #ff00ff",
+                  fontSize: "12px", // Smaller font
+                  textShadow: "0 0 3px #ff00ff", // Smaller shadow
                 }}
                 onMouseEnter={(e) =>
                   (e.target.style.backgroundColor = "#00ccff")
@@ -704,7 +704,7 @@ function Chat() {
           </ListGroup>
         </Col>
         <Col
-          md={9}
+          md={10} // Wider chat area
           style={{
             padding: "0",
             position: "relative",
@@ -717,8 +717,8 @@ function Chat() {
           <div
             style={{
               position: "relative",
-              padding: "10px 0",
-              height: "60px",
+              padding: "8px 0", // Reduced padding
+              height: "50px", // Reduced height
               backgroundColor: "#330066",
               borderBottom: "2px solid #ff00ff",
               flexShrink: 0,
@@ -728,7 +728,8 @@ function Chat() {
               style={{
                 margin: "0",
                 textAlign: "center",
-                textShadow: "0 0 15px #00ffff",
+                textShadow: "0 0 12px #00ffff", // Slightly smaller shadow
+                fontSize: "18px", // Smaller font size
               }}
             >
               CHATTING WITH {recipientName.toUpperCase()}
@@ -738,14 +739,14 @@ function Chat() {
               onClick={scrollToBottom}
               style={{
                 position: "absolute",
-                right: "10px",
+                right: "8px", // Reduced right margin
                 top: "50%",
                 transform: "translateY(-50%)",
-                padding: "5px 10px",
-                fontSize: "16px",
+                padding: "4px 8px", // Smaller padding
+                fontSize: "14px", // Smaller font
                 backgroundColor: "#ff00ff",
                 borderColor: "#ff00ff",
-                textShadow: "0 0 5px #00ffff",
+                textShadow: "0 0 4px #00ffff", // Smaller shadow
               }}
             >
               ↓
@@ -756,11 +757,11 @@ function Chat() {
             style={{
               flexGrow: 1,
               overflowY: "auto", // Enabled scrolling
-              padding: "15px",
+              padding: "10px", // Reduced padding
               background: "rgba(0, 0, 0, 0.7)",
               border: "2px solid #ff00ff",
               borderRadius: "5px",
-              maxHeight: "calc(600px - 240px)", // Adjusted for header, input, and padding
+              maxHeight: "calc(500px - 200px)", // Adjusted for smaller header and input
             }}
           >
             <div
@@ -800,26 +801,26 @@ function Chat() {
                         msg.sender === currentAccount?.address
                           ? "right"
                           : "left",
-                      margin: "5px 0",
-                      borderRadius: "8px",
+                      margin: "3px 0", // Reduced margin
+                      borderRadius: "6px", // Smaller radius
                       maxWidth: "70%",
                       marginLeft:
                         msg.sender === currentAccount?.address
                           ? "auto"
-                          : "10px",
-                      padding: "10px",
+                          : "8px", // Reduced margin
+                      padding: "6px", // Reduced padding
                       border: msg.status === 'sending' || msg.id.startsWith('temp-')
                         ? "2px dashed #ffff00"
                         : msg.status === 'failed'
                         ? "2px solid #ff0000"
                         : "1px dashed #ff00ff",
                       boxShadow: msg.status === 'sending' || msg.id.startsWith('temp-')
-                        ? "0 0 10px rgba(255, 255, 0, 0.5)"
+                        ? "0 0 8px rgba(255, 255, 0, 0.5)" // Smaller shadow
                         : msg.status === 'failed'
-                        ? "0 0 10px rgba(255, 0, 0, 0.5)"
-                        : "0 0 10px rgba(0, 255, 255, 0.5)",
-                      fontSize: "14px",
-                      textShadow: "0 0 3px #ff00ff",
+                        ? "0 0 8px rgba(255, 0, 0, 0.5)" // Smaller shadow
+                        : "0 0 8px rgba(0, 255, 255, 0.5)", // Smaller shadow
+                      fontSize: "12px", // Smaller font
+                      textShadow: "0 0 2px #ff00ff", // Smaller shadow
                       whiteSpace: "pre-wrap",
                       wordBreak: "break-word",
                       opacity: msg.status === 'sending' || msg.id.startsWith('temp-') ? 0.8 : 1,
@@ -833,18 +834,18 @@ function Chat() {
                     </strong>{" "}
                     {msg.content}
                     {(msg.status === 'sending' || msg.id.startsWith('temp-')) && (
-                      <span style={{ color: "#ffff00", marginLeft: "8px", fontSize: "12px" }}>
+                      <span style={{ color: "#ffff00", marginLeft: "6px", fontSize: "10px" }}>
                         ⏳ {msg.status === 'sending' ? 'Sending...' : 'Sent'}
                       </span>
                     )}
                     {msg.status === 'confirmed' && (
-                      <span style={{ color: "#00ff00", marginLeft: "8px", fontSize: "12px" }}>
+                      <span style={{ color: "#00ff00", marginLeft: "6px", fontSize: "10px" }}>
                         ✓ Confirmed
                       </span>
                     )}
                     {msg.status === 'failed' && msg.sender === currentAccount?.address && (
                       <>
-                        <span style={{ color: "#ff0000", marginLeft: "8px", fontSize: "12px" }}>
+                        <span style={{ color: "#ff0000", marginLeft: "6px", fontSize: "10px" }}>
                           ✗ Failed
                         </span>
                         <button
@@ -857,11 +858,11 @@ function Chat() {
                             background: "none",
                             border: "1px solid #ff0000",
                             color: "#ff0000",
-                            fontSize: "10px",
-                            padding: "2px 6px",
-                            marginLeft: "8px",
+                            fontSize: "8px", // Smaller font
+                            padding: "1px 4px", // Smaller padding
+                            marginLeft: "6px",
                             cursor: "pointer",
-                            borderRadius: "3px",
+                            borderRadius: "2px", // Smaller radius
                           }}
                           onMouseOver={(e) => e.target.style.background = "#ff0000"}
                           onMouseOut={(e) => e.target.style.background = "none"}
@@ -874,7 +875,7 @@ function Chat() {
                     <br />
                     <small
                       style={{
-                        fontSize: "10px",
+                        fontSize: "8px", // Smaller font
                         color:
                           msg.sender === currentAccount?.address
                             ? "#330066"
@@ -896,14 +897,14 @@ function Chat() {
               backgroundColor: "#330066",
               borderTop: "2px solid #ff00ff",
               flexShrink: 0,
-              height: "100px", // Fixed height to keep input and button visible
+              height: "80px", // Reduced height
               display: "flex",
               alignItems: "center",
             }}
           >
             <Form
               onSubmit={handleSend}
-              style={{ width: "100%", display: "flex", gap: "10px" }}
+              style={{ width: "100%", display: "flex", gap: "8px" }} // Reduced gap
             >
               <Form.Control
                 as="textarea"
@@ -915,15 +916,16 @@ function Chat() {
                 }
                 style={{
                   flex: "1",
-                  minHeight: "40px",
-                  padding: "10px",
+                  minHeight: "35px", // Reduced height
+                  padding: "8px", // Reduced padding
                   backgroundColor: "#1a0033",
                   color: "#00ffff",
                   border: "2px solid #ff00ff",
-                  borderRadius: "5px",
+                  borderRadius: "4px", // Smaller radius
                   resize: "none",
                   fontFamily: "Orbitron, sans-serif",
-                  textShadow: "0 0 3px #ff00ff",
+                  fontSize: "12px", // Smaller font
+                  textShadow: "0 0 2px #ff00ff", // Smaller shadow
                 }}
                 disabled={!isConnected}
               />
@@ -931,12 +933,12 @@ function Chat() {
                 variant="primary"
                 type="submit"
                 style={{
-                  padding: "10px 20px",
+                  padding: "8px 16px", // Reduced padding
                   backgroundColor: "#ff00ff",
                   borderColor: "#ff00ff",
                   fontFamily: "Orbitron, sans-serif",
-                  fontSize: "16px",
-                  textShadow: "0 0 5px #00ffff",
+                  fontSize: "14px", // Smaller font
+                  textShadow: "0 0 4px #00ffff", // Smaller shadow
                 }}
                 disabled={!isConnected}
               >
