@@ -392,21 +392,8 @@ function Chat() {
 
     const tempId = `temp-${Date.now()}`;
     setSendStatus(true);
-    try {
       console.log("Sending message to:", recipientAddress);
       console.log("Current account:", currentAccount?.address);
-      
-      // Add message with 'sending' status immediately
-      const tempMessage = {
-        id: tempId,
-        sender: currentAccount.address,
-        recipient: recipientAddress,
-        content: message.trim().replace(/\s+/g, " ").slice(0, 100),
-        timestamp: new Date(),
-        timestampMs: Date.now(),
-        status: 'sending',
-      };
-      setMessages(prevMessages => [...prevMessages, tempMessage]);
       if (!recipientAddress || !/^0x[a-fA-F0-9]{64}$/.test(recipientAddress)) {
         throw new Error("Invalid recipient address: " + recipientAddress);
       }
@@ -436,6 +423,18 @@ function Chat() {
         contentLength: content.length,
         clock: "0x0000000000000000000000000000000000000000000000000000000000000006"
       });
+      
+      // Add message with 'sending' status immediately
+      const tempMessage = {
+        id: tempId,
+        sender: currentAccount.address,
+        recipient: recipientAddress,
+        content: cleanedMessage,
+        timestamp: new Date(),
+        timestampMs: Date.now(),
+        status: 'sending',
+      };
+      setMessages(prevMessages => [...prevMessages, tempMessage]);
 
       console.log('About to call signAndExecuteTransactionBlock with:', {
         transaction: tx,
@@ -447,94 +446,106 @@ function Chat() {
         }
       });
 
-      const result = await signAndExecuteTransactionBlock({
+      // Use the mutate function with callbacks instead of awaiting
+      signAndExecuteTransactionBlock({
         transaction: tx,
         options: {
           showEffects: true,
           showEvents: true,
         },
-      });
+      }, {
+        onSuccess: (result) => {
+          console.log('Transaction result:', result);
+          console.log('Transaction effects:', result?.effects);
+          console.log('Transaction events:', result?.events);
 
-      console.log('Transaction result:', result);
-      console.log('Transaction effects:', result?.effects);
-      console.log('Transaction events:', result?.events);
+          // Check if transaction was successful
+          const isSuccess = result && result.effects && result.effects.status && 
+                           result.effects.status.status === 'success';
+          
+          console.log('Transaction success check:', isSuccess, 'result type:', typeof result);
+          
+          if (isSuccess) {
+            console.log('Transaction completed successfully');
 
-      // Check if transaction was successful
-      const isSuccess = result && result.effects && result.effects.status && 
-                       result.effects.status.status === 'success';
-      
-      console.log('Transaction success check:', isSuccess, 'result type:', typeof result);
-      
-      if (isSuccess) {
-        console.log('Transaction completed successfully');
+            // Try to extract message info from transaction events
+            let messageId = null;
+            let eventSender = null;
+            let eventRecipient = null;
+            let eventTimestamp = null;
 
-        // Try to extract message info from transaction events
-        let messageId = null;
-        let eventSender = null;
-        let eventRecipient = null;
-        let eventTimestamp = null;
+            if (result.events && result.events.length > 0) {
+              const messageEvent = result.events.find(event => 
+                event.type === `${packageId}::su_messaging::MessageCreated` ||
+                event.type.includes('MessageCreated')
+              );
+              
+              if (messageEvent && messageEvent.parsedJson) {
+                const eventData = messageEvent.parsedJson;
+                messageId = eventData.message_id;
+                eventSender = eventData.sender;
+                eventRecipient = eventData.recipient;
+                eventTimestamp = eventData.timestamp;
+                console.log('Found message event in transaction:', eventData);
+              }
+            }
 
-        if (result.events && result.events.length > 0) {
-          const messageEvent = result.events.find(event => 
-            event.type === `${packageId}::su_messaging::MessageCreated` ||
-            event.type.includes('MessageCreated')
+            // Update the temporary message with confirmed status and real data
+            setMessages(prevMessages => 
+              prevMessages.map(msg => 
+                msg.id === tempId 
+                  ? {
+                      ...msg,
+                      id: messageId || msg.id,
+                      sender: eventSender || msg.sender,
+                      recipient: eventRecipient || msg.recipient,
+                      timestamp: eventTimestamp ? new Date(Long.fromValue(eventTimestamp).toNumber()) : msg.timestamp,
+                      timestampMs: eventTimestamp || msg.timestampMs,
+                      status: 'confirmed'
+                    }
+                  : msg
+              )
+            );
+
+            setSendStatus(false);
+            setMessage("");
+            // Fetch messages in background to confirm the transaction
+            setTimeout(() => fetchMessages(), 1000);
+          } else {
+            console.error('Transaction failed or result undefined:', result);
+            // Mark as failed
+            setMessages(prevMessages => 
+              prevMessages.map(msg => 
+                msg.id === tempId 
+                  ? { ...msg, status: 'failed' }
+                  : msg
+              )
+            );
+            setError("Transaction failed: " + (result ? JSON.stringify(result) : 'No result returned'));
+            setSendStatus(false);
+          }
+        },
+        onError: (error) => {
+          console.error('Transaction failed with error:', error);
+          console.error('Error details:', {
+            message: error.message,
+            stack: error.stack,
+            name: error.name
+          });
+          
+          // Mark the temporary message as failed
+          setMessages(prevMessages => 
+            prevMessages.map(msg => 
+              msg.id === tempId 
+                ? { ...msg, status: 'failed' }
+                : msg
+            )
           );
           
-          if (messageEvent && messageEvent.parsedJson) {
-            const eventData = messageEvent.parsedJson;
-            messageId = eventData.message_id;
-            eventSender = eventData.sender;
-            eventRecipient = eventData.recipient;
-            eventTimestamp = eventData.timestamp;
-            console.log('Found message event in transaction:', eventData);
-          }
+          setError("Failed to send: " + error.message);
+          setSendStatus(false);
         }
-
-        // Update the temporary message with confirmed status and real data
-        setMessages(prevMessages => 
-          prevMessages.map(msg => 
-            msg.id === tempId 
-              ? {
-                  ...msg,
-                  id: messageId || msg.id,
-                  sender: eventSender || msg.sender,
-                  recipient: eventRecipient || msg.recipient,
-                  timestamp: eventTimestamp ? new Date(Long.fromValue(eventTimestamp).toNumber()) : msg.timestamp,
-                  timestampMs: eventTimestamp || msg.timestampMs,
-                  status: 'confirmed'
-                }
-              : msg
-          )
-        );
-
-        setSendStatus(false);
-        setMessage("");
-        // Fetch messages in background to confirm the transaction
-        setTimeout(() => fetchMessages(), 1000);
-      } else {
-        console.error('Transaction failed or result undefined:', result);
-        throw new Error('Transaction failed: ' + (result ? JSON.stringify(result) : 'No result returned'));
-      }
-    } catch (err) {
-      console.error('Transaction failed with error:', err);
-      console.error('Error details:', {
-        message: err.message,
-        stack: err.stack,
-        name: err.name
       });
-      
-      // Mark the temporary message as failed
-      setMessages(prevMessages => 
-        prevMessages.map(msg => 
-          msg.id === tempId 
-            ? { ...msg, status: 'failed' }
-            : msg
-        )
-      );
-      
-      setError("Failed to send: " + err.message);
-      setSendStatus(false);
-    }
   };
 
   const scrollToBottom = () => {
