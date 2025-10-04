@@ -15,10 +15,10 @@ import {
   Alert,
 } from "react-bootstrap";
 import { useParams, useNavigate } from "react-router-dom";
-import { Transaction } from "@mysten/sui/transactions";
+import { Transaction, Inputs } from "@mysten/sui/transactions";
+import { bcs } from "@mysten/bcs";
 import { useCurrentAccount, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
 import { SuiClient } from "@mysten/sui/client";
-import * as bcs from "@mysten/bcs";
 import Long from "long";
 
 function Chat() {
@@ -78,7 +78,7 @@ function Chat() {
 
       // Limit initial fetch to 20 events for faster loading
       const response = await client.queryEvents({
-        query: { MoveEventType: `${packageId}::message::MessageCreated` },
+        query: { MoveEventType: `${packageId}::su_messaging::MessageCreated` },
         limit: 20,
         cursor,
         order: "ascending",
@@ -99,14 +99,14 @@ function Chat() {
             client.getOwnedObjects({
               owner: sender,
               filter: {
-                MatchAll: [{ StructType: `${packageId}::message::Message` }],
+                MatchAll: [{ StructType: `${packageId}::su_messaging::Message` }],
               },
               options: { showContent: true, showType: true },
             }),
             client.getOwnedObjects({
               owner: recipient,
               filter: {
-                MatchAll: [{ StructType: `${packageId}::message::Message` }],
+                MatchAll: [{ StructType: `${packageId}::su_messaging::Message` }],
               },
               options: { showContent: true, showType: true },
             }),
@@ -157,7 +157,7 @@ function Chat() {
 
       do {
         const response = await client.queryEvents({
-          query: { MoveEventType: `${packageId}::message::MessageCreated` },
+          query: { MoveEventType: `${packageId}::su_messaging::MessageCreated` },
           limit: 20, // Reduced limit for faster loading
           cursor,
           order: "ascending",
@@ -215,26 +215,35 @@ function Chat() {
 
     setSendStatus(true);
     try {
+      console.log("Sending message to:", recipientAddress);
+      console.log("Current account:", currentAccount?.address);
+
+      // Validate recipient address
+      if (!recipientAddress || !/^0x[a-fA-F0-9]{64}$/.test(recipientAddress)) {
+        throw new Error("Invalid recipient address: " + recipientAddress);
+      }
+
+      // Prevent sending to oneself
+      if (recipientAddress === currentAccount?.address) {
+        throw new Error("Cannot send message to yourself");
+      }
+
       const cleanedMessage = message.trim().replace(/\s+/g, " ").slice(0, 100);
       const content = new TextEncoder().encode(cleanedMessage);
-      const writer = new bcs.BcsWriter();
-      writer.writeVec(content, (w, item) => w.write8(item));
-      const bcsBytes = writer.toBytes();
 
       const tx = new Transaction();
       tx.moveCall({
-        target: `${packageId}::message::send_message`,
+        target: `${packageId}::su_messaging::send_message`,
         arguments: [
-          tx.pure(currentAccount.address),
-          tx.pure(recipientAddress),
-          tx.pure(bcsBytes, "vector<u8>"),
+          tx.pure.address(recipientAddress),
+          tx.pure(bcs.vector(bcs.u8()).serialize(Array.from(content))),
+          tx.object("0x0000000000000000000000000000000000000000000000000000000000000006"), // Clock object
         ],
       });
 
       await signAndExecuteTransactionBlock({
         transaction: tx,
         options: { showEffects: true },
-        account: currentAccount,
       });
 
       setSendStatus(false);

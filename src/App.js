@@ -8,7 +8,8 @@ import {
   useCurrentAccount,
   useCurrentWallet,
   useConnectWallet,
-  ConnectButton,
+  useWallets,
+  useDisconnectWallet,
 } from "@mysten/dapp-kit"; // Updated to use the new dapp-kit
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SuiClient } from "@mysten/sui/client";
@@ -18,6 +19,8 @@ import {
   Route,
   Navigate,
   Link,
+  useNavigate,
+  useLocation,
 } from "react-router-dom";
 import logo from "./img/su-logo.png";
 import Dashboard from "./Dashboard";
@@ -28,11 +31,23 @@ function AppContent() {
   const [userName, setUserName] = useState("");
   const [menuColor, setMenuColor] = useState("#ff00ff"); // Default to pink from Chat.js
   const [showWalletModal, setShowWalletModal] = useState(false);
-  const connect = useConnectWallet();
+  const connect = useConnectWallet({
+    onSuccess: () => {
+      console.log('Wallet connected successfully');
+    },
+    onError: (error) => {
+      console.error('Wallet connection failed:', error);
+    }
+  });
+  const disconnect = useDisconnectWallet();
+  const wallets = useWallets();
   const currentAccount = useCurrentAccount();
   const currentWallet = useCurrentWallet();
   const isConnected = !!currentAccount;
+  const [showWalletDropdown, setShowWalletDropdown] = useState(false);
   const [selectedWallet, setSelectedWallet] = useState("");
+  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     const client = new SuiClient({
@@ -72,6 +87,18 @@ function AppContent() {
     }, 100);
     return () => clearInterval(interval);
   }, [isConnected, currentAccount]);
+
+  // Close wallet dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showWalletDropdown && !event.target.closest('.wallet-dropdown-container')) {
+        setShowWalletDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showWalletDropdown]);
 
   const handleDashboardClick = (e) => {
     if (!isConnected) {
@@ -182,24 +209,180 @@ function AppContent() {
                 >
                   Connect Wallet
                 </Button>
-              ) : (
-                <ConnectButton
+              ) : isConnected ? (
+                // Connected wallet display - modern card style
+                <div
+                  className="wallet-dropdown-container"
                   style={{
-                    backgroundColor: menuColor,
-                    borderColor: menuColor,
-                    textShadow: "0 0 6px #00ffff",
-                    fontSize: "1em",
-                    padding: "6px 15px",
-                    borderRadius: "8px",
-                    transition: "background-color 0.4s",
+                    position: 'relative',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    background: `linear-gradient(135deg, ${menuColor}20, ${menuColor}40)`,
+                    border: `2px solid ${menuColor}`,
+                    borderRadius: '12px',
+                    padding: '8px 16px',
+                    boxShadow: `0 0 20px ${menuColor}40`,
+                    transition: 'all 0.3s ease',
+                    cursor: 'pointer',
                   }}
-                  onMouseEnter={(e) =>
-                    (e.target.style.backgroundColor = "#00ffff")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.target.style.backgroundColor = menuColor)
-                  }
-                />
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.boxShadow = `0 0 30px ${menuColor}60`;
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.boxShadow = `0 0 20px ${menuColor}40`;
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  <div style={{
+                    width: '12px',
+                    height: '12px',
+                    borderRadius: '50%',
+                    backgroundColor: '#00ff00',
+                    boxShadow: '0 0 8px #00ff00',
+                    animation: 'pulse 2s infinite',
+                  }} />
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                    <span style={{
+                      color: '#00ffff',
+                      fontSize: '0.9em',
+                      fontWeight: 'bold',
+                      textShadow: '0 0 6px #00ffff',
+                    }}>
+                      {currentWallet?.name || 'Connected'}
+                    </span>
+                    <span style={{
+                      color: '#00ffff',
+                      fontSize: '0.7em',
+                      opacity: 0.8,
+                      fontFamily: 'monospace',
+                    }}>
+                      {currentAccount?.address?.slice(0, 8)}...{currentAccount?.address?.slice(-6)}
+                    </span>
+                  </div>
+                  <Button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      disconnect.mutate();
+                    }}
+                    style={{
+                      backgroundColor: 'transparent',
+                      border: `1px solid ${menuColor}`,
+                      color: menuColor,
+                      fontSize: '0.7em',
+                      padding: '4px 8px',
+                      borderRadius: '6px',
+                      transition: 'all 0.2s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.backgroundColor = menuColor;
+                      e.target.style.color = '#1a0033';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.backgroundColor = 'transparent';
+                      e.target.style.color = menuColor;
+                    }}
+                  >
+                    ✕
+                  </Button>
+                </div>
+              ) : (
+                // Modern wallet selector
+                <div className="wallet-dropdown-container" style={{ position: 'relative' }}>
+                  <Button
+                    onClick={() => setShowWalletDropdown(!showWalletDropdown)}
+                    style={{
+                      backgroundColor: menuColor,
+                      border: `2px solid ${menuColor}`,
+                      color: '#00ffff',
+                      textShadow: '0 0 8px #00ffff',
+                      fontSize: '0.9em',
+                      padding: '10px 20px',
+                      borderRadius: '12px',
+                      fontWeight: 'bold',
+                      boxShadow: `0 0 20px ${menuColor}40`,
+                      transition: 'all 0.3s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.boxShadow = `0 0 30px ${menuColor}60`;
+                      e.target.style.transform = 'translateY(-2px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.boxShadow = `0 0 20px ${menuColor}40`;
+                      e.target.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    <span>🔗</span>
+                    Connect Wallet
+                    <span style={{
+                      transition: 'transform 0.3s ease',
+                      transform: showWalletDropdown ? 'rotate(180deg)' : 'rotate(0deg)',
+                    }}>▼</span>
+                  </Button>
+
+                  {showWalletDropdown && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: '100%',
+                        right: 0,
+                        marginTop: '8px',
+                        background: 'linear-gradient(135deg, #1a0033, #330066)',
+                        border: `2px solid ${menuColor}`,
+                        borderRadius: '12px',
+                        boxShadow: `0 0 30px ${menuColor}40`,
+                        minWidth: '200px',
+                        zIndex: 1000,
+                        animation: 'fadeIn 0.2s ease-out',
+                      }}
+                    >
+                      {wallets.map((wallet, index) => (
+                        <div
+                          key={wallet.name}
+                          onClick={() => {
+                            console.log('Connecting to wallet:', wallet);
+                            connect.mutate({ wallet });
+                            setShowWalletDropdown(false);
+                          }}
+                          style={{
+                            padding: '12px 16px',
+                            cursor: 'pointer',
+                            borderBottom: index < wallets.length - 1 ? `1px solid ${menuColor}40` : 'none',
+                            transition: 'all 0.2s ease',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.target.style.backgroundColor = `${menuColor}20`;
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.style.backgroundColor = 'transparent';
+                          }}
+                        >
+                          <div style={{
+                            width: '8px',
+                            height: '8px',
+                            borderRadius: '50%',
+                            backgroundColor: menuColor,
+                            boxShadow: `0 0 6px ${menuColor}`,
+                          }} />
+                          <span style={{
+                            color: '#00ffff',
+                            textShadow: '0 0 4px #00ffff',
+                            fontWeight: '500',
+                          }}>
+                            {wallet.name}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
             </Nav>
           </Container>

@@ -38,7 +38,7 @@ function Dashboard() {
 
       // Single fetch with sufficient limit to avoid excessive looping
       const response = await client.queryEvents({
-        query: { MoveEventType: `${packageId}::message::MessageCreated` },
+        query: { MoveEventType: `${packageId}::su_messaging::MessageCreated` },
         limit: 100, // Adequate limit to cover recent chats
         order: "ascending",
       });
@@ -94,14 +94,14 @@ function Dashboard() {
               client.getOwnedObjects({
                 owner: senderAddress,
                 filter: {
-                  MatchAll: [{ StructType: `${packageId}::message::Message` }],
+                  MatchAll: [{ StructType: `${packageId}::su_messaging::Message` }],
                 },
                 options: { showContent: true, showType: true },
               }),
               client.getOwnedObjects({
                 owner: address,
                 filter: {
-                  MatchAll: [{ StructType: `${packageId}::message::Message` }],
+                  MatchAll: [{ StructType: `${packageId}::su_messaging::Message` }],
                 },
                 options: { showContent: true, showType: true },
               }),

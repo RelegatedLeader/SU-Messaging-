@@ -40,3 +40,27 @@ h3 {
 img {
   image-rendering: -webkit-optimize-contrast;
 }
+
+/* Modern wallet UI animations */
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 8px #00ff00;
+  }
+  50% {
+    box-shadow: 0 0 16px #00ff00, 0 0 24px #00ff00;
+  }
+  100% {
+    box-shadow: 0 0 8px #00ff00;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
