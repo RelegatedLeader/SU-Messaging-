@@ -469,70 +469,52 @@ function AppContent() {
                     </div>
                   </div>
                 ) : (
-                  // Mobile Disconnected State - Use ConnectButton with custom styling
+                  // Mobile Disconnected State - Styled ConnectButton wrapper
                   <div className="mobile-connect-container" style={{ width: '100%', padding: '0 16px' }}>
-                    <div style={{
-                      position: 'relative',
-                      marginTop: '12px',
-                      fontFamily: '"Orbitron", sans-serif',
-                    }}>
+                    <div
+                      className="cyberpunk-connect-wrapper"
+                      style={{
+                        position: 'relative',
+                        marginTop: '12px',
+                        fontFamily: '"Orbitron", sans-serif',
+                        background: `linear-gradient(135deg, ${menuColor}, ${menuColor}dd)`,
+                        border: `2px solid ${menuColor}`,
+                        borderRadius: '16px',
+                        boxShadow: `0 0 25px ${menuColor}60, inset 0 0 25px ${menuColor}20`,
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <div style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        background: `linear-gradient(45deg, transparent 30%, ${menuColor}20 50%, transparent 70%)`,
+                        animation: 'shimmer 3s infinite',
+                        pointerEvents: 'none',
+                        zIndex: 1,
+                      }} />
                       <ConnectButton
+                        className="cyberpunk-connect-button"
                         style={{
-                          background: `linear-gradient(135deg, ${menuColor}, ${menuColor}dd)`,
-                          border: `2px solid ${menuColor}`,
+                          width: '100%',
+                          minHeight: '56px',
+                          background: 'transparent',
+                          border: 'none',
                           color: '#00ffff',
                           textShadow: '0 0 10px #00ffff, 0 0 20px #00ffff',
                           fontSize: '18px',
                           fontWeight: 'bold',
-                          padding: '16px 24px',
-                          borderRadius: '16px',
-                          width: '100%',
-                          minHeight: '56px',
-                          boxShadow: `0 0 25px ${menuColor}60, inset 0 0 25px ${menuColor}20`,
-                          transition: 'all 0.4s ease',
+                          fontFamily: '"Orbitron", sans-serif',
                           position: 'relative',
-                          overflow: 'hidden',
+                          zIndex: 2,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           gap: '12px',
-                          fontFamily: '"Orbitron", sans-serif',
+                          padding: '16px 24px',
                         }}
-                        connectText={
-                          <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '12px',
-                            width: '100%'
-                          }}>
-                            <div style={{
-                              position: 'absolute',
-                              top: 0,
-                              left: 0,
-                              right: 0,
-                              bottom: 0,
-                              background: `linear-gradient(45deg, transparent 30%, ${menuColor}20 50%, transparent 70%)`,
-                              animation: 'shimmer 3s infinite',
-                              pointerEvents: 'none',
-                            }} />
-                            <span style={{
-                              fontSize: '20px',
-                              filter: 'drop-shadow(0 0 8px #00ffff)',
-                              zIndex: 1,
-                              position: 'relative',
-                            }}>
-                              🔐
-                            </span>
-                            <span style={{
-                              zIndex: 1,
-                              position: 'relative',
-                              letterSpacing: '1px',
-                            }}>
-                              CONNECT WALLET
-                            </span>
-                          </div>
-                        }
                       />
                     </div>
                   </div>

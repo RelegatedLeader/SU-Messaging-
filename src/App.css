@@ -418,3 +418,46 @@ div[role="dialog"][aria-labelledby*="wallet"] {
     opacity: 1;
   }
 }
+
+/* Cyberpunk ConnectButton Styling */
+.cyberpunk-connect-wrapper {
+  border-radius: 16px !important;
+  overflow: hidden !important;
+}
+
+.cyberpunk-connect-button button {
+  background: transparent !important;
+  border: none !important;
+  color: #00ffff !important;
+  text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff !important;
+  font-size: 18px !important;
+  font-weight: bold !important;
+  font-family: "Orbitron", sans-serif !important;
+  width: 100% !important;
+  min-height: 56px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 12px !important;
+  padding: 16px 24px !important;
+  position: relative !important;
+  z-index: 2 !important;
+  transition: all 0.3s ease !important;
+}
+
+.cyberpunk-connect-button button:hover {
+  transform: translateY(-2px) !important;
+  text-shadow: 0 0 15px #00ffff, 0 0 30px #00ffff !important;
+}
+
+.cyberpunk-connect-button button::before {
+  content: "🔐";
+  font-size: 20px;
+  filter: drop-shadow(0 0 8px #00ffff);
+  margin-right: 8px;
+}
+
+.cyberpunk-connect-button button::after {
+  content: "CONNECT WALLET";
+  letter-spacing: 1px;
+}
