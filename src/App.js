@@ -35,6 +35,66 @@ import {
 } from "./utils/mobileWallet";
 import MobileErrorModal from "./components/MobileErrorModal";
 
+// Auth callback component for handling return from Slush wallet
+function AuthCallback() {
+  const navigate = useNavigate();
+  const connect = useConnectWallet();
+  const [menuColor] = useState("#ff00ff");
+
+  React.useEffect(() => {
+    const handleAuthCallback = async () => {
+      try {
+        console.log('Handling auth callback from Slush wallet');
+        
+        // Attempt to connect the wallet
+        await connect.mutateAsync();
+        
+        // If successful, redirect to dashboard
+        navigate('/dashboard');
+      } catch (error) {
+        console.error('Auth callback failed:', error);
+        // If connection fails, redirect back to home
+        navigate('/');
+      }
+    };
+
+    handleAuthCallback();
+  }, [connect, navigate]);
+
+  return (
+    <Container
+      className="mt-4 text-center"
+      style={{
+        background: "linear-gradient(135deg, #1a0033, #440088)",
+        border: `4px solid ${menuColor}`,
+        borderRadius: "12px",
+        boxShadow: "0 0 20px #00ffff",
+        color: "#00ffff",
+        fontFamily: "Orbitron, sans-serif",
+        padding: "20px",
+      }}
+    >
+      <h2 style={{ textShadow: "0 0 15px #00ffff" }}>
+        Connecting to Wallet...
+      </h2>
+      <p style={{ textShadow: "0 0 6px #ff00ff" }}>
+        Please wait while we establish your wallet connection.
+      </p>
+      <div style={{ margin: "20px 0" }}>
+        <div style={{
+          width: "40px",
+          height: "40px",
+          border: `3px solid ${menuColor}`,
+          borderTop: "3px solid transparent",
+          borderRadius: "50%",
+          animation: "spin 1s linear infinite",
+          margin: "0 auto",
+        }} />
+      </div>
+    </Container>
+  );
+}
+
 function AppContent() {
   const [userName, setUserName] = useState("");
   const [menuColor, setMenuColor] = useState("#ff00ff"); // Default to pink from Chat.js
@@ -104,6 +164,38 @@ function AppContent() {
   const [selectedWallet, setSelectedWallet] = useState("");
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Handle deep link to Slush wallet app for mobile authentication
+  const handleSlushDeepLink = () => {
+    if (isMobileDevice()) {
+      try {
+        // Get the current URL for redirect back
+        const currentUrl = window.location.origin;
+        const redirectUrl = encodeURIComponent(`${currentUrl}/auth-callback`);
+        
+        // Create deep link to Slush app
+        const deepLink = `slush://signin?redirect_uri=${redirectUrl}`;
+        
+        console.log('Opening Slush deep link:', deepLink);
+        
+        // Open the deep link
+        window.location.href = deepLink;
+        
+        // Fallback: if deep link doesn't work, try opening in new window
+        setTimeout(() => {
+          window.open(deepLink, '_blank');
+        }, 1000);
+        
+      } catch (error) {
+        console.error('Failed to open Slush deep link:', error);
+        // Fallback to regular connection
+        handleWebConnect();
+      }
+    } else {
+      // Desktop fallback
+      handleWebConnect();
+    }
+  };
 
   // Sign personal message for authentication
   const { mutate: signPersonalMessage } = useSignPersonalMessage();
@@ -267,7 +359,7 @@ function AppContent() {
               </Nav.Link>
               {isMobile ? (
                 <Button
-                  onClick={() => setShowWalletModal(true)}
+                  onClick={handleSlushDeepLink}
                   style={{
                     backgroundColor: menuColor,
                     borderColor: menuColor,
@@ -544,6 +636,10 @@ function AppContent() {
           <Route
             path="/settings"
             element={<Settings setMenuColor={setMenuColor} />}
+          />
+          <Route
+            path="/auth-callback"
+            element={<AuthCallback />}
           />
         </Routes>
 
