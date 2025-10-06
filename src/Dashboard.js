@@ -174,32 +174,34 @@ function Dashboard() {
     <Container
       className="mt-3"
       style={{
-        maxWidth: "800px", // Reduced from 1200px
-        maxHeight: "80vh", // Reduced from 90vh
+        maxWidth: "95vw", // Responsive width for mobile
+        width: "100%", // Full width on small screens
+        maxHeight: "85vh", // Better mobile height
         height: "auto",
         display: "flex",
         flexDirection: "column",
-        gap: "8px", // Reduced gap
+        gap: "12px", // Slightly larger gap for touch
         background: "linear-gradient(135deg, #1a0033, #440088)",
-        border: `3px solid ${menuColor}`, // Thinner border
-        borderRadius: "10px", // Smaller radius
-        boxShadow: "0 0 18px rgba(0, 255, 255, 0.6)", // Smaller shadow
+        border: `3px solid ${menuColor}`,
+        borderRadius: "12px", // Slightly larger radius for mobile
+        boxShadow: "0 0 20px rgba(0, 255, 255, 0.6)", // Adjusted shadow
         fontFamily: "Orbitron, sans-serif",
         color: "#00ffff",
-        padding: "10px", // Reduced padding
+        padding: "16px", // Increased padding for mobile
         overflow: "auto",
+        margin: "0 auto", // Center on page
       }}
     >
       <h2
         className="text-center"
         style={{
-          textShadow: "0 0 15px #00ffff", // Smaller shadow
-          marginBottom: "8px", // Reduced margin
+          textShadow: "0 0 15px #00ffff",
+          marginBottom: "12px",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          gap: "8px", // Reduced gap
-          fontSize: "20px", // Smaller font
+          gap: "8px",
+          fontSize: "clamp(18px, 4vw, 24px)", // Responsive font size
         }}
       >
         Dashboard
@@ -207,21 +209,20 @@ function Dashboard() {
       <div
         style={{
           display: "flex",
-          gap: "10px", // Reduced gap
-          justifyContent: "space-between",
-          minHeight: "400px", // Reduced height
+          flexDirection: "column", // Stack vertically on mobile
+          gap: "16px",
+          minHeight: "500px",
         }}
       >
         <Form
           onSubmit={handleStartChat}
           style={{
-            flex: "1 1 300px", // More constrained width for left side
-            minWidth: "250px", // Reduced min width
+            width: "100%", // Full width on mobile
             border: `2px solid ${menuColor}`,
-            padding: "8px", // Reduced padding
-            borderRadius: "6px", // Smaller radius
+            padding: "16px", // Increased padding
+            borderRadius: "8px",
             background: "linear-gradient(135deg, #1a0033, #330066)",
-            boxShadow: "0 0 12px rgba(0, 255, 255, 0.4)", // Smaller shadow
+            boxShadow: "0 0 15px rgba(0, 255, 255, 0.4)",
           }}
         >
           <Form.Group controlId="recipientAddress">
@@ -238,27 +239,29 @@ function Dashboard() {
                 backgroundColor: "white",
                 color: "black",
                 border: `1px dashed ${menuColor}`,
-                borderRadius: "4px", // Smaller radius
-                padding: "6px", // Reduced padding
-                fontSize: "12px", // Smaller font
-                textShadow: "0 0 2px #ccffcc", // Smaller shadow
+                borderRadius: "6px",
+                padding: "12px", // Larger padding for touch
+                fontSize: "16px", // Prevents zoom on iOS
+                textShadow: "0 0 2px #ccffcc",
                 transition: "border-color 0.4s",
+                minHeight: "48px", // Touch-friendly height
               }}
             />
           </Form.Group>
           <Button
             variant="primary"
             type="submit"
-            className="mt-2"
+            className="mt-3"
             style={{
               backgroundColor: menuColor,
               borderColor: menuColor,
-              textShadow: "0 0 5px #00ffff", // Smaller shadow
-              padding: "6px 12px", // Reduced padding
-              fontSize: "12px", // Smaller font
+              textShadow: "0 0 5px #00ffff",
+              padding: "12px 20px", // Larger padding for touch
+              fontSize: "16px", // Prevents zoom on iOS
               transition: "background-color 0.4s",
               width: "100%",
-              borderRadius: "4px", // Smaller radius
+              borderRadius: "8px",
+              minHeight: "48px", // Touch-friendly height
             }}
             onMouseEnter={(e) => (e.target.style.backgroundColor = "#00ffff")}
             onMouseLeave={(e) => (e.target.style.backgroundColor = menuColor)}
@@ -268,16 +271,15 @@ function Dashboard() {
         </Form>
         <div
           style={{
-            flex: "2 1 400px", // More space for right side
-            minWidth: "300px", // Adequate min width
+            width: "100%", // Full width on mobile
             display: "flex",
             flexDirection: "column",
-            gap: "8px", // Reduced gap
+            gap: "12px",
           }}
         >
           <InputGroup
             style={{
-              height: "32px", // Reduced height
+              height: "48px", // Touch-friendly height
             }}
           >
             <Form.Control
@@ -289,12 +291,12 @@ function Dashboard() {
                 backgroundColor: "white",
                 color: "black",
                 border: `1px dashed ${menuColor}`,
-                borderRadius: "4px", // Smaller radius
-                padding: "6px", // Reduced padding
-                fontSize: "12px", // Smaller font
-                textShadow: "0 0 2px #ccffcc", // Smaller shadow
+                borderRadius: "6px",
+                padding: "12px", // Larger padding
+                fontSize: "16px", // Prevents zoom on iOS
+                textShadow: "0 0 2px #ccffcc",
                 transition: "border-color 0.4s",
-                height: "32px", // Reduced height
+                height: "48px", // Touch-friendly height
               }}
             />
           </InputGroup>
@@ -303,7 +305,7 @@ function Dashboard() {
               overflow: "auto", // Keep scroll for overflow
             }}
           >
-            <h4 style={{ textShadow: "0 0 10px #00ffff", marginBottom: "4px", fontSize: "14px" }}>
+            <h4 style={{ textShadow: "0 0 10px #00ffff", marginBottom: "8px", fontSize: "18px" }}>
               Recent Chats
             </h4>
             {isLoadingChats ? (
@@ -395,8 +397,8 @@ function Dashboard() {
                 style={{
                   background: "rgba(0, 0, 0, 0.5)",
                   border: `2px solid ${menuColor}`,
-                  borderRadius: "4px", // Smaller radius
-                  boxShadow: "0 0 12px rgba(0, 255, 255, 0.4)", // Smaller shadow
+                  borderRadius: "8px",
+                  boxShadow: "0 0 15px rgba(0, 255, 255, 0.4)",
                 }}
               >
                 {filteredChats.map((chat, index) => (
@@ -406,11 +408,13 @@ function Dashboard() {
                       backgroundColor: "#1a0033",
                       color: "#00ffff",
                       position: "relative",
-                      padding: "6px", // Reduced padding
+                      padding: "12px", // Larger padding for touch
                       display: "flex",
                       flexDirection: "column",
                       borderBottom: `1px dashed ${menuColor}`,
                       transition: "background-color 0.3s",
+                      minHeight: "60px", // Touch-friendly height
+                      cursor: "pointer",
                     }}
                     onMouseEnter={(e) =>
                       (e.target.style.backgroundColor = "#00ccff")
@@ -454,14 +458,15 @@ function Dashboard() {
                       style={{
                         color: "#00ffff",
                         fontWeight: "normal",
-                        padding: "4px", // Reduced padding
+                        padding: "8px", // Larger padding
                         backgroundColor: "#330066",
-                        borderRadius: "3px", // Smaller radius
-                        maxWidth: "80%",
+                        borderRadius: "6px", // Larger radius
+                        maxWidth: "85%",
                         wordWrap: "break-word",
                         border: `1px dashed ${menuColor}`,
-                        boxShadow: "0 0 8px rgba(0, 255, 255, 0.4)", // Smaller shadow
-                        fontSize: "10px", // Smaller font
+                        boxShadow: "0 0 10px rgba(0, 255, 255, 0.4)",
+                        fontSize: "14px", // Larger font for mobile
+                        marginTop: "8px",
                       }}
                     >
                       {chat.lastMessage || "No message content available"}
@@ -476,18 +481,16 @@ function Dashboard() {
       {error && (
         <Alert
           variant="danger"
-          className="mt-2"
+          className="mt-3"
           style={{
             backgroundColor: "#330066",
-            border: `1px solid ${menuColor}`,
+            border: `2px solid ${menuColor}`,
             color: "#ff0000",
-            position: "absolute",
-            top: "10px",
-            left: "50%",
-            transform: "translateX(-50%)",
-            width: "90%",
-            maxWidth: "600px",
+            width: "100%",
             boxShadow: "0 0 15px rgba(255, 0, 0, 0.5)",
+            fontSize: "16px", // Prevents zoom on iOS
+            padding: "12px",
+            borderRadius: "8px",
           }}
         >
           {error}

@@ -400,10 +400,14 @@ function AppContent() {
                     backgroundColor: menuColor,
                     borderColor: menuColor,
                     textShadow: "0 0 6px #00ffff",
-                    fontSize: "1em",
-                    padding: "6px 15px",
-                    borderRadius: "8px",
+                    fontSize: "16px", // Prevents zoom on iOS
+                    padding: "12px 20px", // Larger touch target
+                    borderRadius: "12px",
                     transition: "background-color 0.4s",
+                    minHeight: "48px", // Touch-friendly height
+                    fontWeight: "bold",
+                    width: "100%", // Full width on mobile
+                    marginTop: "8px",
                   }}
                 />
               ) : isConnected ? (
@@ -494,8 +498,8 @@ function AppContent() {
                       border: `2px solid ${menuColor}`,
                       color: '#00ffff',
                       textShadow: '0 0 8px #00ffff',
-                      fontSize: '0.9em',
-                      padding: '10px 20px',
+                      fontSize: 'clamp(14px, 2vw, 16px)', // Responsive font size
+                      padding: '12px 24px', // Larger touch target
                       borderRadius: '12px',
                       fontWeight: 'bold',
                       boxShadow: `0 0 20px ${menuColor}40`,
@@ -503,6 +507,7 @@ function AppContent() {
                       display: 'flex',
                       alignItems: 'center',
                       gap: '8px',
+                      minHeight: '48px', // Touch-friendly height
                     }}
                     onMouseEnter={(e) => {
                       e.target.style.boxShadow = `0 0 30px ${menuColor}60`;

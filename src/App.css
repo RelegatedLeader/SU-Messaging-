@@ -107,6 +107,9 @@ div[role="dialog"][aria-labelledby*="wallet"] {
   left: 50% !important;
   transform: translate(-50%, -50%) !important;
   z-index: 10001 !important;
+  max-width: 95vw !important; /* Responsive width */
+  max-height: 90vh !important; /* Responsive height */
+  width: 100% !important;
 }
 
 .wallet-kit-modal,
@@ -116,25 +119,40 @@ div[role="dialog"][aria-labelledby*="wallet"] {
   left: 50% !important;
   transform: translate(-50%, -50%) !important;
   z-index: 10001 !important;
+  background: linear-gradient(135deg, #1a0033, #440088) !important;
+  border: 3px solid #ff00ff !important;
+  border-radius: 16px !important;
+  box-shadow: 0 0 40px rgba(0, 255, 255, 0.8) !important;
+  padding: 20px !important;
+  max-width: 95vw !important;
+  max-height: 90vh !important;
+  overflow-y: auto !important;
 }
 
 /* Style wallet selection options */
 .wallet-kit-option,
 .wallet-option {
   background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%) !important;
-  border: 1px solid rgba(0, 255, 255, 0.3) !important;
-  border-radius: 10px !important;
+  border: 2px solid rgba(0, 255, 255, 0.4) !important;
+  border-radius: 12px !important;
   color: #ffffff !important;
   font-family: "Orbitron", sans-serif !important;
   transition: all 0.3s ease !important;
-  margin: 5px !important;
+  margin: 8px !important;
+  padding: 16px !important; /* Larger padding for touch */
+  min-height: 60px !important; /* Touch-friendly height */
+  font-size: 16px !important; /* Prevents zoom on iOS */
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
 }
 
 .wallet-kit-option:hover,
 .wallet-option:hover {
   background: linear-gradient(135deg, #00ffff 0%, #0080ff 50%, #8000ff 100%) !important;
-  box-shadow: 0 0 20px rgba(0, 255, 255, 0.5) !important;
+  box-shadow: 0 0 25px rgba(0, 255, 255, 0.6) !important;
   transform: scale(1.02) !important;
+  border-color: #00ffff !important;
 }
 
 /* Modern wallet UI animations */
@@ -237,24 +255,52 @@ div[role="dialog"][aria-labelledby*="wallet"] {
     touch-action: manipulation !important;
   }
 
-  /* Chat specific mobile styles */
+  /* Chat component mobile improvements */
   .chat-container {
-    height: calc(100vh - 120px) !important;
-    max-height: calc(100vh - 120px) !important;
-  }
-
-  .chat-messages {
-    max-height: calc(100vh - 200px) !important;
+    margin: 8px !important;
+    padding: 12px !important;
+    border-radius: 12px !important;
   }
 
   .message-input {
     font-size: 16px !important; /* Prevents zoom on iOS */
+    min-height: 48px !important; /* Touch-friendly height */
+    padding: 12px !important;
   }
 
-  /* Touch-friendly interactions */
-  .touch-target {
-    min-height: 44px !important;
-    min-width: 44px !important;
+  /* Better form controls on mobile */
+  .form-control:focus {
+    font-size: 16px !important; /* Prevents zoom on iOS */
+    transform: none !important; /* Prevents unwanted scaling */
+  }
+
+  /* Dashboard mobile improvements */
+  .dashboard-container {
+    margin: 8px auto !important;
+    padding: 16px !important;
+    max-width: 100vw !important;
+  }
+
+  /* Ensure all interactive elements are touch-friendly */
+  button,
+  .btn,
+  input,
+  textarea,
+  select {
+    min-height: 44px !important; /* iOS minimum touch target */
+    touch-action: manipulation !important;
+  }
+
+  /* Better spacing for mobile */
+  .container {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  /* Improve list item touch targets */
+  .list-group-item {
+    min-height: 48px !important;
+    padding: 12px !important;
   }
 
   /* Improve readability on small screens */
@@ -262,17 +308,40 @@ div[role="dialog"][aria-labelledby*="wallet"] {
     text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7) !important;
   }
 
-  /* Wallet dropdown mobile optimization */
-  .wallet-dropdown-container {
-    position: static !important;
-    width: 100% !important;
-    margin-top: 10px !important;
+  /* Wallet modal mobile optimization */
+  .wallet-kit-modal,
+  .wallet-kit-dropdown {
+    max-width: 98vw !important;
+    max-height: 95vh !important;
+    padding: 16px !important;
+    border-radius: 12px !important;
   }
 
-  .wallet-dropdown {
-    position: static !important;
-    box-shadow: none !important;
-    border: 2px solid var(--primary-blue) !important;
+  .wallet-kit-option,
+  .wallet-option {
+    margin: 6px !important;
+    padding: 14px !important;
+    min-height: 56px !important;
+    font-size: 16px !important;
+    border-radius: 10px !important;
+  }
+
+  /* Improve navbar mobile layout */
+  .navbar-nav {
+    width: 100% !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+  }
+
+  .navbar-nav .nav-item {
+    flex: 1 !important;
+    text-align: center !important;
+  }
+
+  /* Better mobile touch targets */
+  .navbar-toggler {
+    min-height: 48px !important;
+    min-width: 48px !important;
   }
 }
 
