@@ -244,6 +244,7 @@ function AppContent() {
   const isConnected = !!currentAccount;
   const [showWalletDropdown, setShowWalletDropdown] = useState(false);
   const [selectedWallet, setSelectedWallet] = useState("");
+  const [showWalletConnectModal, setShowWalletConnectModal] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -598,102 +599,38 @@ function AppContent() {
                   </Button>
                 </div>
               ) : (
-                // Modern wallet selector
-                <div className="wallet-dropdown-container" style={{ position: 'relative' }}>
-                  <Button
-                    onClick={() => setShowWalletDropdown(!showWalletDropdown)}
-                    style={{
-                      backgroundColor: menuColor,
-                      border: `2px solid ${menuColor}`,
-                      color: '#00ffff',
-                      textShadow: '0 0 8px #00ffff',
-                      fontSize: 'clamp(14px, 2vw, 16px)', // Responsive font size
-                      padding: '12px 24px', // Larger touch target
-                      borderRadius: '12px',
-                      fontWeight: 'bold',
-                      boxShadow: `0 0 20px ${menuColor}40`,
-                      transition: 'all 0.3s ease',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      minHeight: '48px', // Touch-friendly height
-                    }}
-                    onMouseEnter={(e) => {
-                      e.target.style.boxShadow = `0 0 30px ${menuColor}60`;
-                      e.target.style.transform = 'translateY(-2px)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.boxShadow = `0 0 20px ${menuColor}40`;
-                      e.target.style.transform = 'translateY(0)';
-                    }}
-                  >
-                    <span>🔗</span>
-                    Connect Wallet
-                    <span style={{
-                      transition: 'transform 0.3s ease',
-                      transform: showWalletDropdown ? 'rotate(180deg)' : 'rotate(0deg)',
-                    }}>▼</span>
-                  </Button>
-
-                  {showWalletDropdown && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: '100%',
-                        right: 0,
-                        marginTop: '8px',
-                        background: 'linear-gradient(135deg, #1a0033, #330066)',
-                        border: `2px solid ${menuColor}`,
-                        borderRadius: '12px',
-                        boxShadow: `0 0 30px ${menuColor}40`,
-                        minWidth: '200px',
-                        zIndex: 1000,
-                        animation: 'fadeIn 0.2s ease-out',
-                      }}
-                    >
-                      {wallets.map((wallet, index) => (
-                        <div
-                          key={wallet.name}
-                          onClick={() => {
-                            console.log('Connecting to wallet:', wallet);
-                            connect.mutate({ wallet });
-                            setShowWalletDropdown(false);
-                          }}
-                          style={{
-                            padding: '12px 16px',
-                            cursor: 'pointer',
-                            borderBottom: index < wallets.length - 1 ? `1px solid ${menuColor}40` : 'none',
-                            transition: 'all 0.2s ease',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '12px',
-                          }}
-                          onMouseEnter={(e) => {
-                            e.target.style.backgroundColor = `${menuColor}20`;
-                          }}
-                          onMouseLeave={(e) => {
-                            e.target.style.backgroundColor = 'transparent';
-                          }}
-                        >
-                          <div style={{
-                            width: '8px',
-                            height: '8px',
-                            borderRadius: '50%',
-                            backgroundColor: menuColor,
-                            boxShadow: `0 0 6px ${menuColor}`,
-                          }} />
-                          <span style={{
-                            color: '#00ffff',
-                            textShadow: '0 0 4px #00ffff',
-                            fontWeight: '500',
-                          }}>
-                            {wallet.name}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                // Modern wallet selector - Modal trigger
+                <Button
+                  onClick={() => setShowWalletConnectModal(true)}
+                  style={{
+                    backgroundColor: menuColor,
+                    border: `2px solid ${menuColor}`,
+                    color: '#00ffff',
+                    textShadow: '0 0 8px #00ffff',
+                    fontSize: 'clamp(14px, 2vw, 16px)',
+                    padding: '12px 24px',
+                    borderRadius: '12px',
+                    fontWeight: 'bold',
+                    boxShadow: `0 0 20px ${menuColor}40`,
+                    transition: 'all 0.3s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    minHeight: '48px',
+                    fontFamily: '"Orbitron", sans-serif',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.boxShadow = `0 0 30px ${menuColor}60`;
+                    e.target.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.boxShadow = `0 0 20px ${menuColor}40`;
+                    e.target.style.transform = 'translateY(0)';
+                  }}
+                >
+                  <span>🔗</span>
+                  Connect Wallet
+                </Button>
               )}
             </Nav>
           </Container>
@@ -702,72 +639,83 @@ function AppContent() {
           <Route
             path="/"
             element={
-              <Container
-                className="mt-4 text-center"
-                style={{
-                  background: "linear-gradient(135deg, #1a0033, #440088)",
-                  border: `4px solid ${menuColor}`,
-                  borderRadius: "12px",
-                  boxShadow: "0 0 20px #00ffff",
-                  color: "#00ffff",
-                  fontFamily: "Orbitron, sans-serif",
-                  padding: "20px",
-                }}
-              >
-                <h1
-                  className="d-flex align-items-center justify-content-center gap-2"
+              isConnected ? <Navigate to="/dashboard" replace /> : (
+                <Container
+                  className="mt-4 text-center"
                   style={{
-                    textShadow: "0 0 15px #00ffff",
-                    fontSize: "2em",
+                    background: "linear-gradient(135deg, #1a0033, #440088)",
+                    border: `4px solid ${menuColor}`,
+                    borderRadius: "12px",
+                    boxShadow: "0 0 20px #00ffff",
+                    color: "#00ffff",
+                    fontFamily: "Orbitron, sans-serif",
+                    padding: "20px",
                   }}
                 >
-                  Welcome to {userName || "SU"}
-                  <img
-                    src={logo}
-                    alt="SU Logo"
+                  <h1
+                    className="d-flex align-items-center justify-content-center gap-2"
                     style={{
-                      width: "50px",
-                      height: "50px",
-                      border: `2px solid ${menuColor}`,
-                      borderRadius: "8px",
+                      textShadow: "0 0 15px #00ffff",
+                      fontSize: "2em",
                     }}
-                  />
-                </h1>
-                <p
-                  style={{
-                    textShadow: "0 0 6px #ff00ff",
-                    fontSize: "1.1em",
-                  }}
-                >
-                  A decentralized messaging app powered by the SUI blockchain.
-                </p>
-                <div className="mt-4">
-                  <Button
-                    as={Link}
-                    to="/dashboard"
-                    variant="outline-primary"
-                    className="mx-2"
-                    style={{
-                      borderColor: menuColor,
-                      color: menuColor,
-                      textShadow: "0 0 6px #00ffff",
-                      padding: "10px 20px",
-                      fontSize: "1.1em",
-                      borderRadius: "8px",
-                      transition: "background-color 0.4s",
-                    }}
-                    onClick={handleDashboardClick}
-                    onMouseEnter={(e) =>
-                      (e.target.style.backgroundColor = "#00ffff")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.target.style.backgroundColor = "transparent")
-                    }
                   >
-                    Go to Dashboard
-                  </Button>
-                </div>
-              </Container>
+                    Welcome to {userName || "SU"}
+                    <img
+                      src={logo}
+                      alt="SU Logo"
+                      style={{
+                        width: "50px",
+                        height: "50px",
+                        border: `2px solid ${menuColor}`,
+                        borderRadius: "8px",
+                      }}
+                    />
+                  </h1>
+                  <p
+                    style={{
+                      textShadow: "0 0 6px #ff00ff",
+                      fontSize: "1.1em",
+                    }}
+                  >
+                    A decentralized messaging app powered by the SUI blockchain.
+                  </p>
+                  <div className="mt-4">
+                    <Button
+                      as={Link}
+                      to="/dashboard"
+                      variant="outline-primary"
+                      className="mx-2"
+                      style={{
+                        background: `linear-gradient(135deg, ${menuColor}20, ${menuColor}40)`,
+                        border: `2px solid ${menuColor}`,
+                        color: '#00ffff',
+                        textShadow: '0 0 8px #00ffff',
+                        padding: '12px 24px',
+                        fontSize: '1.1em',
+                        borderRadius: '12px',
+                        fontWeight: 'bold',
+                        boxShadow: `0 0 15px ${menuColor}40`,
+                        transition: 'all 0.3s ease',
+                        fontFamily: '"Orbitron", sans-serif',
+                        minHeight: '48px',
+                      }}
+                      onClick={handleDashboardClick}
+                      onMouseEnter={(e) => {
+                        e.target.style.boxShadow = `0 0 25px ${menuColor}60`;
+                        e.target.style.transform = 'translateY(-2px)';
+                        e.target.style.background = `linear-gradient(135deg, ${menuColor}30, ${menuColor}50)`;
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.boxShadow = `0 0 15px ${menuColor}40`;
+                        e.target.style.transform = 'translateY(0)';
+                        e.target.style.background = `linear-gradient(135deg, ${menuColor}20, ${menuColor}40)`;
+                      }}
+                    >
+                      🚀 Go to Dashboard
+                    </Button>
+                  </div>
+                </Container>
+              )
             }
           />
           <Route
@@ -938,6 +886,150 @@ function AppContent() {
           onRetry={handleWebConnect}
           menuColor={menuColor}
         />
+
+        {/* Desktop Wallet Connect Modal */}
+        <Modal
+          show={showWalletConnectModal}
+          onHide={() => setShowWalletConnectModal(false)}
+          centered
+          size="md"
+          style={{
+            background: 'rgba(0, 0, 0, 0.9)',
+            backdropFilter: 'blur(10px)',
+          }}
+        >
+          <Modal.Header
+            style={{
+              background: 'linear-gradient(135deg, #1a0033, #330066)',
+              borderBottom: `2px solid ${menuColor}`,
+              color: '#00ffff',
+              fontFamily: 'Orbitron, sans-serif',
+            }}
+          >
+            <Modal.Title style={{ textShadow: '0 0 12px #00ffff' }}>
+              🔗 Connect Wallet
+            </Modal.Title>
+          </Modal.Header>
+          <Modal.Body
+            style={{
+              background: '#1a0033',
+              color: '#00ffff',
+              textShadow: '0 0 4px #ff00ff',
+              padding: '25px',
+            }}
+          >
+            <p style={{ marginBottom: '20px', fontSize: '1.1em' }}>
+              Choose your wallet to connect and start using SU Messaging:
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {wallets.map((wallet, index) => (
+                <div
+                  key={wallet.name}
+                  onClick={() => {
+                    console.log('Connecting to wallet:', wallet);
+                    connect.mutate({ wallet });
+                    setShowWalletConnectModal(false);
+                  }}
+                  style={{
+                    padding: '16px 20px',
+                    cursor: 'pointer',
+                    background: `linear-gradient(135deg, ${menuColor}10, ${menuColor}20)`,
+                    border: `2px solid ${menuColor}40`,
+                    borderRadius: '12px',
+                    transition: 'all 0.3s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '16px',
+                    fontFamily: 'Orbitron, sans-serif',
+                    fontSize: '1.1em',
+                    fontWeight: '500',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.background = `linear-gradient(135deg, ${menuColor}20, ${menuColor}30)`;
+                    e.target.style.borderColor = menuColor;
+                    e.target.style.transform = 'translateY(-2px)';
+                    e.target.style.boxShadow = `0 0 20px ${menuColor}40`;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.background = `linear-gradient(135deg, ${menuColor}10, ${menuColor}20)`;
+                    e.target.style.borderColor = `${menuColor}40`;
+                    e.target.style.transform = 'translateY(0)';
+                    e.target.style.boxShadow = 'none';
+                  }}
+                >
+                  <div style={{
+                    width: '12px',
+                    height: '12px',
+                    borderRadius: '50%',
+                    backgroundColor: menuColor,
+                    boxShadow: `0 0 8px ${menuColor}`,
+                    animation: 'pulse 2s infinite',
+                  }} />
+                  <span style={{
+                    color: '#00ffff',
+                    textShadow: '0 0 6px #00ffff',
+                  }}>
+                    {wallet.name}
+                  </span>
+                  <div style={{ marginLeft: 'auto' }}>
+                    <span style={{
+                      color: menuColor,
+                      fontSize: '1.2em',
+                      textShadow: `0 0 8px ${menuColor}`,
+                    }}>
+                      →
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{
+              marginTop: '20px',
+              padding: '12px',
+              background: 'rgba(0, 255, 255, 0.1)',
+              border: '1px solid #00ffff',
+              borderRadius: '8px',
+            }}>
+              <strong style={{ color: '#00ffff' }}>🔐 Secure Connection:</strong>
+              <br />
+              <small style={{ color: '#ffffff' }}>
+                Your wallet connection is secure and encrypted. You'll be redirected to sign an authentication message to prove ownership.
+              </small>
+            </div>
+          </Modal.Body>
+          <Modal.Footer
+            style={{
+              background: 'linear-gradient(135deg, #1a0033, #330066)',
+              borderTop: `2px solid ${menuColor}`,
+            }}
+          >
+            <Button
+              variant="secondary"
+              onClick={() => setShowWalletConnectModal(false)}
+              style={{
+                backgroundColor: 'transparent',
+                borderColor: menuColor,
+                color: menuColor,
+                textShadow: '0 0 4px #00ffff',
+                padding: '6px 15px',
+                fontSize: '1em',
+                borderRadius: '8px',
+                transition: 'all 0.3s',
+                fontFamily: 'Orbitron, sans-serif',
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = `${menuColor}20`;
+                e.target.style.color = '#00ffff';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'transparent';
+                e.target.style.color = menuColor;
+              }}
+            >
+              Cancel
+            </Button>
+          </Modal.Footer>
+        </Modal>
       </div>
   );
 }
