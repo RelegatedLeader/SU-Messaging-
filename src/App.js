@@ -11,6 +11,7 @@ import {
   useWallets,
   useDisconnectWallet,
   useSignPersonalMessage,
+  ConnectButton,
 } from "@mysten/dapp-kit"; // Updated to use the new dapp-kit
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SuiClient } from "@mysten/sui/client";
@@ -246,66 +247,7 @@ function AppContent() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Handle deep link to Slush wallet app for mobile authentication
-  const handleSlushDeepLink = () => {
-    if (isMobileDevice()) {
-      try {
-        console.log('Creating direct Slush wallet deep link');
-
-        const currentUrl = window.location.origin;
-        const callbackUrl = encodeURIComponent(`${currentUrl}/auth-callback`);
-
-        // Try multiple deep link formats that Slush might support
-        const deepLinks = [
-          // Direct sign-in request
-          `slush://signin?redirect_uri=${callbackUrl}`,
-          // WalletConnect style
-          `slush://wc?uri=wc:00e46b69-d0cc-4b3e-b6a8-cee4402e794e@1?bridge=https%3A%2F%2Fbridge.walletconnect.org&key=91303dedf64285cbbaf9120f6e9d160a5c8aa3deb67017a387eca5c401a011d649&redirect=${callbackUrl}`,
-          // Generic wallet connect
-          `slush://connect?redirect=${callbackUrl}`,
-        ];
-
-        // Store session info
-        sessionStorage.setItem('authPending', 'true');
-        sessionStorage.setItem('authTimestamp', Date.now().toString());
-
-        // Try each deep link format
-        let opened = false;
-        for (const deepLink of deepLinks) {
-          try {
-            console.log('Trying deep link:', deepLink);
-            window.location.href = deepLink;
-            opened = true;
-            break;
-          } catch (e) {
-            console.log('Deep link failed, trying next:', e);
-          }
-        }
-
-        // If no deep link worked, try opening in new window as fallback
-        if (!opened) {
-          setTimeout(() => {
-            for (const deepLink of deepLinks) {
-              try {
-                window.open(deepLink, '_blank');
-                break;
-              } catch (e) {
-                console.log('Fallback deep link failed:', e);
-              }
-            }
-          }, 1000);
-        }
-
-      } catch (error) {
-        console.error('Failed to create Slush deep link:', error);
-        // Fallback to regular connection
-        handleWebConnect();
-      }
-    } else {
-      // Desktop fallback
-      handleWebConnect();
-    }
-  };  // Sign personal message for authentication
+  // Sign personal message for authentication
   const { mutate: signPersonalMessage } = useSignPersonalMessage();
 
   // Mobile error modal state
@@ -452,8 +394,8 @@ function AppContent() {
                 Settings
               </Nav.Link>
               {isMobile ? (
-                <Button
-                  onClick={handleSlushDeepLink}
+                <ConnectButton
+                  connectText="🔐 Connect Wallet"
                   style={{
                     backgroundColor: menuColor,
                     borderColor: menuColor,
@@ -463,15 +405,7 @@ function AppContent() {
                     borderRadius: "8px",
                     transition: "background-color 0.4s",
                   }}
-                  onMouseEnter={(e) =>
-                    (e.target.style.backgroundColor = "#00ffff")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.target.style.backgroundColor = menuColor)
-                  }
-                >
-                  Connect Wallet
-                </Button>
+                />
               ) : isConnected ? (
                 // Connected wallet display - modern card style
                 <div

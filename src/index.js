@@ -13,7 +13,10 @@ root.render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <SuiClientProvider networks={[{ id: 'mainnet', network: 'mainnet', rpcUrl: 'https://fullnode.mainnet.sui.io:443' }]}>
-        <WalletProvider enableUnsafeBurnerWallet={true} slushWallet={{ name: 'Slush Wallet' }}>
+        <WalletProvider 
+          enableUnsafeBurnerWallet={true} 
+          slushWallet={{ name: 'Slush Wallet' }}
+        >
           <App />
         </WalletProvider>
       </SuiClientProvider>
