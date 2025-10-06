@@ -19,6 +19,7 @@ function Dashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [menuColor, setMenuColor] = useState("#ff00ff"); // Sync with App.js default
   const [isLoadingChats, setIsLoadingChats] = useState(false);
+  const [mobileView, setMobileView] = useState("start"); // "start" or "chats" for mobile
   const navigate = useNavigate();
   const currentAccount = useCurrentAccount();
   const isConnected = !!currentAccount;
@@ -174,34 +175,32 @@ function Dashboard() {
     <Container
       className="mt-3"
       style={{
-        maxWidth: "95vw", // Responsive width for mobile
-        width: "100%", // Full width on small screens
-        maxHeight: "85vh", // Better mobile height
+        maxWidth: "1200px", // Back to original width
+        maxHeight: "80vh", // Back to original height
         height: "auto",
         display: "flex",
         flexDirection: "column",
-        gap: "12px", // Slightly larger gap for touch
+        gap: "8px", // Back to original gap
         background: "linear-gradient(135deg, #1a0033, #440088)",
-        border: `3px solid ${menuColor}`,
-        borderRadius: "12px", // Slightly larger radius for mobile
-        boxShadow: "0 0 20px rgba(0, 255, 255, 0.6)", // Adjusted shadow
+        border: `3px solid ${menuColor}`, // Back to original border
+        borderRadius: "10px", // Back to original radius
+        boxShadow: "0 0 18px rgba(0, 255, 255, 0.6)", // Back to original shadow
         fontFamily: "Orbitron, sans-serif",
         color: "#00ffff",
-        padding: "16px", // Increased padding for mobile
+        padding: "10px", // Back to original padding
         overflow: "auto",
-        margin: "0 auto", // Center on page
       }}
     >
       <h2
         className="text-center"
         style={{
-          textShadow: "0 0 15px #00ffff",
-          marginBottom: "12px",
+          textShadow: "0 0 15px #00ffff", // Smaller shadow
+          marginBottom: "8px", // Reduced margin
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          gap: "8px",
-          fontSize: "clamp(18px, 4vw, 24px)", // Responsive font size
+          gap: "8px", // Reduced gap
+          fontSize: "20px", // Smaller font
         }}
       >
         Dashboard
@@ -209,22 +208,72 @@ function Dashboard() {
       <div
         style={{
           display: "flex",
-          flexDirection: "column", // Stack vertically on mobile
-          gap: "16px",
-          minHeight: "500px",
+          gap: "10px",
+          justifyContent: "space-between",
+          minHeight: "400px",
+          flexDirection: window.innerWidth < 768 ? "column" : "row", // Stack on mobile
         }}
       >
-        <Form
-          onSubmit={handleStartChat}
-          style={{
-            width: "100%", // Full width on mobile
-            border: `2px solid ${menuColor}`,
-            padding: "16px", // Increased padding
-            borderRadius: "8px",
-            background: "linear-gradient(135deg, #1a0033, #330066)",
-            boxShadow: "0 0 15px rgba(0, 255, 255, 0.4)",
-          }}
-        >
+        {/* Mobile Toggle Buttons */}
+        {window.innerWidth < 768 && (
+          <div
+            style={{
+              display: "flex",
+              gap: "8px",
+              marginBottom: "12px",
+              justifyContent: "center",
+            }}
+          >
+            <Button
+              onClick={() => setMobileView("start")}
+              style={{
+                backgroundColor: mobileView === "start" ? menuColor : "#330066",
+                border: `2px solid ${menuColor}`,
+                color: "#00ffff",
+                textShadow: "0 0 6px #00ffff",
+                padding: "8px 16px",
+                borderRadius: "8px",
+                fontSize: "14px",
+                flex: "1",
+                minHeight: "44px", // Touch-friendly
+              }}
+            >
+              📝 Start Chat
+            </Button>
+            <Button
+              onClick={() => setMobileView("chats")}
+              style={{
+                backgroundColor: mobileView === "chats" ? menuColor : "#330066",
+                border: `2px solid ${menuColor}`,
+                color: "#00ffff",
+                textShadow: "0 0 6px #00ffff",
+                padding: "8px 16px",
+                borderRadius: "8px",
+                fontSize: "14px",
+                flex: "1",
+                minHeight: "44px", // Touch-friendly
+              }}
+            >
+              💬 Recent Chats
+            </Button>
+          </div>
+        )}
+
+        {/* Start Chat Form - Show on desktop or when selected on mobile */}
+        {(window.innerWidth >= 768 || mobileView === "start") && (
+          <Form
+            onSubmit={handleStartChat}
+            style={{
+              flex: window.innerWidth < 768 ? "none" : "1 1 300px",
+              width: window.innerWidth < 768 ? "100%" : "auto",
+              minWidth: window.innerWidth < 768 ? "auto" : "250px",
+              border: `2px solid ${menuColor}`,
+              padding: window.innerWidth < 768 ? "16px" : "8px",
+              borderRadius: window.innerWidth < 768 ? "8px" : "6px",
+              background: "linear-gradient(135deg, #1a0033, #330066)",
+              boxShadow: window.innerWidth < 768 ? "0 0 15px rgba(0, 255, 255, 0.4)" : "0 0 12px rgba(0, 255, 255, 0.4)",
+            }}
+          >
           <Form.Group controlId="recipientAddress">
             <Form.Label style={{ textShadow: "0 0 6px #ff00ff" }}>
               Start a Chat
@@ -239,29 +288,27 @@ function Dashboard() {
                 backgroundColor: "white",
                 color: "black",
                 border: `1px dashed ${menuColor}`,
-                borderRadius: "6px",
-                padding: "12px", // Larger padding for touch
-                fontSize: "16px", // Prevents zoom on iOS
-                textShadow: "0 0 2px #ccffcc",
+                borderRadius: "4px", // Smaller radius
+                padding: "6px", // Reduced padding
+                fontSize: "12px", // Smaller font
+                textShadow: "0 0 2px #ccffcc", // Smaller shadow
                 transition: "border-color 0.4s",
-                minHeight: "48px", // Touch-friendly height
               }}
             />
           </Form.Group>
           <Button
             variant="primary"
             type="submit"
-            className="mt-3"
+            className="mt-2"
             style={{
               backgroundColor: menuColor,
               borderColor: menuColor,
-              textShadow: "0 0 5px #00ffff",
-              padding: "12px 20px", // Larger padding for touch
-              fontSize: "16px", // Prevents zoom on iOS
+              textShadow: "0 0 5px #00ffff", // Smaller shadow
+              padding: "6px 12px", // Reduced padding
+              fontSize: "12px", // Smaller font
               transition: "background-color 0.4s",
               width: "100%",
-              borderRadius: "8px",
-              minHeight: "48px", // Touch-friendly height
+              borderRadius: "4px", // Smaller radius
             }}
             onMouseEnter={(e) => (e.target.style.backgroundColor = "#00ffff")}
             onMouseLeave={(e) => (e.target.style.backgroundColor = menuColor)}
@@ -269,17 +316,23 @@ function Dashboard() {
             Start Chat
           </Button>
         </Form>
-        <div
-          style={{
-            width: "100%", // Full width on mobile
-            display: "flex",
-            flexDirection: "column",
-            gap: "12px",
-          }}
-        >
+        )}
+
+        {/* Recent Chats Section - Show on desktop or when selected on mobile */}
+        {(window.innerWidth >= 768 || mobileView === "chats") && (
+          <div
+            style={{
+              flex: window.innerWidth < 768 ? "none" : "2 1 400px",
+              width: window.innerWidth < 768 ? "100%" : "auto",
+              minWidth: window.innerWidth < 768 ? "auto" : "300px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "8px",
+            }}
+          >
           <InputGroup
             style={{
-              height: "48px", // Touch-friendly height
+              height: "32px", // Reduced height
             }}
           >
             <Form.Control
@@ -291,12 +344,12 @@ function Dashboard() {
                 backgroundColor: "white",
                 color: "black",
                 border: `1px dashed ${menuColor}`,
-                borderRadius: "6px",
-                padding: "12px", // Larger padding
-                fontSize: "16px", // Prevents zoom on iOS
-                textShadow: "0 0 2px #ccffcc",
+                borderRadius: "4px", // Smaller radius
+                padding: "6px", // Reduced padding
+                fontSize: "12px", // Smaller font
+                textShadow: "0 0 2px #ccffcc", // Smaller shadow
                 transition: "border-color 0.4s",
-                height: "48px", // Touch-friendly height
+                height: "32px", // Reduced height
               }}
             />
           </InputGroup>
@@ -305,7 +358,7 @@ function Dashboard() {
               overflow: "auto", // Keep scroll for overflow
             }}
           >
-            <h4 style={{ textShadow: "0 0 10px #00ffff", marginBottom: "8px", fontSize: "18px" }}>
+            <h4 style={{ textShadow: "0 0 10px #00ffff", marginBottom: "4px", fontSize: "14px" }}>
               Recent Chats
             </h4>
             {isLoadingChats ? (
@@ -397,8 +450,8 @@ function Dashboard() {
                 style={{
                   background: "rgba(0, 0, 0, 0.5)",
                   border: `2px solid ${menuColor}`,
-                  borderRadius: "8px",
-                  boxShadow: "0 0 15px rgba(0, 255, 255, 0.4)",
+                  borderRadius: "4px", // Smaller radius
+                  boxShadow: "0 0 12px rgba(0, 255, 255, 0.4)", // Smaller shadow
                 }}
               >
                 {filteredChats.map((chat, index) => (
@@ -408,13 +461,11 @@ function Dashboard() {
                       backgroundColor: "#1a0033",
                       color: "#00ffff",
                       position: "relative",
-                      padding: "12px", // Larger padding for touch
+                      padding: "6px", // Reduced padding
                       display: "flex",
                       flexDirection: "column",
                       borderBottom: `1px dashed ${menuColor}`,
                       transition: "background-color 0.3s",
-                      minHeight: "60px", // Touch-friendly height
-                      cursor: "pointer",
                     }}
                     onMouseEnter={(e) =>
                       (e.target.style.backgroundColor = "#00ccff")
@@ -477,20 +528,23 @@ function Dashboard() {
             )}
           </div>
         </div>
+      )}
       </div>
       {error && (
         <Alert
           variant="danger"
-          className="mt-3"
+          className="mt-2"
           style={{
             backgroundColor: "#330066",
-            border: `2px solid ${menuColor}`,
+            border: `1px solid ${menuColor}`,
             color: "#ff0000",
-            width: "100%",
+            position: "absolute",
+            top: "10px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: "90%",
+            maxWidth: "600px",
             boxShadow: "0 0 15px rgba(255, 0, 0, 0.5)",
-            fontSize: "16px", // Prevents zoom on iOS
-            padding: "12px",
-            borderRadius: "8px",
           }}
         >
           {error}

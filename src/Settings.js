@@ -1,9 +1,162 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Container, Form, Button, Alert, Modal } from "react-bootstrap";
 import { Transaction } from "@mysten/sui/transactions";
 import { useCurrentAccount, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
 import { SuiClient } from "@mysten/sui/client";
 import { isMobileDevice } from "./utils/mobileWallet";
+
+// Wallet Address Display Component
+function WalletAddressDisplay({ address, menuColor }) {
+  const [isVisible, setIsVisible] = useState(true);
+  const [isCopied, setIsCopied] = useState(false);
+  const holdTimeoutRef = useRef(null);
+
+  const handleMouseDown = () => {
+    holdTimeoutRef.current = setTimeout(() => {
+      setIsVisible(false);
+    }, 1000); // 1 second hold to hide
+  };
+
+  const handleMouseUp = () => {
+    if (holdTimeoutRef.current) {
+      clearTimeout(holdTimeoutRef.current);
+      holdTimeoutRef.current = null;
+    }
+  };
+
+  const handleTouchStart = () => {
+    holdTimeoutRef.current = setTimeout(() => {
+      setIsVisible(false);
+    }, 1000);
+  };
+
+  const handleTouchEnd = () => {
+    if (holdTimeoutRef.current) {
+      clearTimeout(holdTimeoutRef.current);
+      holdTimeoutRef.current = null;
+    }
+  };
+
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(address);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy address:', err);
+    }
+  };
+
+  const showAddress = () => {
+    setIsVisible(true);
+  };
+
+  if (!isVisible) {
+    return (
+      <div
+        className="text-center mb-4"
+        style={{ cursor: 'pointer' }}
+        onClick={showAddress}
+      >
+        <span
+          style={{
+            color: menuColor,
+            textShadow: `0 0 8px ${menuColor}`,
+            fontSize: '0.9em',
+            opacity: 0.7,
+          }}
+        >
+          🔒 Address Hidden - Click to Show
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="text-center mb-4"
+      style={{
+        background: "linear-gradient(135deg, #1a0033, #330066)",
+        border: `2px solid ${menuColor}`,
+        borderRadius: "8px",
+        padding: "12px",
+        margin: "0 auto",
+        maxWidth: "600px",
+        boxShadow: `0 0 15px ${menuColor}40`,
+      }}
+    >
+      <div
+        style={{
+          color: "#00ffff",
+          fontSize: "0.9em",
+          marginBottom: "8px",
+          textShadow: "0 0 6px #00ffff",
+        }}
+      >
+        Current Wallet Address:
+      </div>
+      <div
+        style={{
+          backgroundColor: "#000",
+          border: `1px dashed ${menuColor}`,
+          borderRadius: "6px",
+          padding: "8px 12px",
+          fontFamily: "monospace",
+          fontSize: "0.8em",
+          color: "#00ffff",
+          wordBreak: "break-all",
+          cursor: "pointer",
+          transition: "all 0.3s ease",
+          position: "relative",
+        }}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onClick={copyToClipboard}
+        title="Click to copy • Hold for 1 second to hide"
+      >
+        <span
+          style={{
+            filter: isCopied ? "blur(2px)" : "none",
+            transition: "filter 0.3s ease",
+          }}
+        >
+          {address}
+        </span>
+        {isCopied && (
+          <div
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              color: "#00ff00",
+              fontSize: "1.2em",
+              fontWeight: "bold",
+              textShadow: "0 0 8px #00ff00",
+              animation: "fadeInOut 2s ease-in-out",
+            }}
+          >
+            ✓ Copied!
+          </div>
+        )}
+      </div>
+      <div
+        style={{
+          color: menuColor,
+          fontSize: "0.7em",
+          marginTop: "6px",
+          opacity: 0.8,
+          textShadow: `0 0 4px ${menuColor}`,
+        }}
+      >
+        Click to copy • Hold 1s to hide
+      </div>
+    </div>
+  );
+}
 
 function Settings() {
   const currentAccount = useCurrentAccount();
@@ -319,6 +472,14 @@ function Settings() {
       >
         Settings
       </h2>
+
+      {isConnected && currentAccount && (
+        <WalletAddressDisplay
+          address={currentAccount.address}
+          menuColor="#ff00ff"
+        />
+      )}
+
       <div className="mt-4">
         {/* Registration Section - Only shown if not registered */}
         {!isRegistered && (
