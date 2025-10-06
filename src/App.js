@@ -10,6 +10,7 @@ import {
   useConnectWallet,
   useWallets,
   useDisconnectWallet,
+  useSignPersonalMessage,
 } from "@mysten/dapp-kit"; // Updated to use the new dapp-kit
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SuiClient } from "@mysten/sui/client";
@@ -28,9 +29,6 @@ import Chat from "./Chat";
 import Settings from "./Settings";
 import {
   isMobileDevice,
-  getMobilePlatform,
-  handleMobileWalletConnection,
-  getRecommendedMobileWallet,
   shouldUseMobileFlow,
   parseMobileError,
   MOBILE_WALLETS
@@ -59,6 +57,9 @@ function AppContent() {
   const [selectedWallet, setSelectedWallet] = useState("");
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Sign personal message for authentication
+  const { mutate: signPersonalMessage } = useSignPersonalMessage();
 
   // Mobile error modal state
   const [showMobileError, setShowMobileError] = useState(false);
@@ -133,9 +134,29 @@ function AppContent() {
   const handleWebConnect = async () => {
     if (shouldUseMobileFlow() && selectedWallet) {
       try {
-        await handleMobileWalletConnection(selectedWallet);
-        // The mobile wallet utility handles the redirect
-        // We don't need to check connection status here as it will redirect
+        // First connect to the wallet (this will redirect to app on mobile)
+        await connect();
+
+        // If connection successful and we have an account, sign authentication message
+        if (currentAccount) {
+          const message = `Sign in to SU Messaging\n\nAddress: ${currentAccount.address}\nTimestamp: ${new Date().toISOString()}`;
+
+          signPersonalMessage({
+            message: new TextEncoder().encode(message),
+          }, {
+            onSuccess: (result) => {
+              console.log('Authentication signature successful:', result);
+              navigate('/dashboard');
+            },
+            onError: (error) => {
+              console.error('Authentication signature failed:', error);
+              const errorType = parseMobileError(error);
+              setMobileError(error);
+              setMobileErrorType(errorType);
+              setShowMobileError(true);
+            }
+          });
+        }
       } catch (error) {
         console.error("Mobile wallet connection failed:", error);
         const errorType = parseMobileError(error);
@@ -144,9 +165,30 @@ function AppContent() {
         setShowMobileError(true);
       }
     } else {
-      // Desktop flow - use the existing connect function
+      // Desktop flow - connect and then sign
       try {
         await connect();
+
+        // If connection successful, sign authentication message
+        if (currentAccount) {
+          const message = `Sign in to SU Messaging\n\nAddress: ${currentAccount.address}\nTimestamp: ${new Date().toISOString()}`;
+
+          signPersonalMessage({
+            message: new TextEncoder().encode(message),
+          }, {
+            onSuccess: (result) => {
+              console.log('Authentication signature successful:', result);
+              navigate('/dashboard');
+            },
+            onError: (error) => {
+              console.error('Authentication signature failed:', error);
+              const errorType = parseMobileError(error);
+              setMobileError(error);
+              setMobileErrorType(errorType);
+              setShowMobileError(true);
+            }
+          });
+        }
       } catch (error) {
         console.error("Desktop wallet connection failed:", error);
         const errorType = parseMobileError(error);
@@ -159,8 +201,6 @@ function AppContent() {
 
   // Enhanced mobile detection
   const isMobile = isMobileDevice();
-  const mobilePlatform = getMobilePlatform();
-  const recommendedWallet = getRecommendedMobileWallet();
 
   return (
     <div>
@@ -538,8 +578,8 @@ function AppContent() {
                   📱 <strong>Mobile Connection</strong>
                 </p>
                 <p style={{ marginBottom: "15px" }}>
-                  For the best experience on mobile, we recommend using the Sui Wallet app.
-                  This will redirect you to sign transactions securely.
+                  Connect your Sui Wallet (Slush) to sign in and start using SU Messaging.
+                  You'll be redirected to your wallet app to approve the connection securely.
                 </p>
                 <div style={{
                   background: "rgba(0, 255, 255, 0.1)",
@@ -548,10 +588,13 @@ function AppContent() {
                   padding: "12px",
                   marginBottom: "15px"
                 }}>
-                  <strong>Recommended: {recommendedWallet === MOBILE_WALLETS.SUI_WALLET ? 'Sui Wallet' : 'Sui Wallet'}</strong>
+                  <strong>🔐 Sign In Process:</strong>
                   <br />
                   <small style={{ color: "#ffffff" }}>
-                    {mobilePlatform === 'ios' ? 'Available on the App Store' : 'Available on Google Play'}
+                    1. Click "Connect Mobile Wallet"<br />
+                    2. Get redirected to Sui Wallet app<br />
+                    3. Review and sign the authentication message<br />
+                    4. Return to SU Messaging automatically
                   </small>
                 </div>
                 <Form.Select
@@ -571,8 +614,8 @@ function AppContent() {
                   <option value={MOBILE_WALLETS.SUI_WALLET}>Sui Wallet</option>
                 </Form.Select>
                 <p style={{ fontSize: "0.9em", color: "#ffffff" }}>
-                  <strong>Note:</strong> You'll be redirected to your wallet app to approve the connection.
-                  Make sure you have the wallet app installed.
+                  <strong>🔐 Sign In Required:</strong> You'll be redirected to Sui Wallet (Slush) to sign an authentication message.
+                  This proves ownership of your address and logs you into SU Messaging.
                 </p>
               </div>
             ) : (
@@ -636,7 +679,7 @@ function AppContent() {
                   (e.target.style.backgroundColor = menuColor)
                 }
               >
-                🚀 Connect Mobile Wallet
+                � Sign In with Wallet
               </Button>
             )}
           </Modal.Footer>

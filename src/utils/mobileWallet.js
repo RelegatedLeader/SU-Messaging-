@@ -85,34 +85,21 @@ export const redirectToWalletForSigning = (walletType, transactionData) => {
   }
 };
 
-// Handle mobile wallet connection
+// Handle mobile wallet connection - simplified to work with dapp-kit
 export const handleMobileWalletConnection = async (walletType) => {
-  const platform = getMobilePlatform();
+  // This function is now mainly for error handling and fallbacks
+  // The actual connection is handled by dapp-kit's useConnectWallet hook
+  // which will automatically redirect to mobile wallet apps when needed
 
   if (walletType === MOBILE_WALLETS.SUI_WALLET) {
-    const scheme = WALLET_APP_SCHEMES[walletType][platform];
-
-    if (scheme) {
-      try {
-        // Try to open the wallet app
-        window.location.href = scheme;
-
-        // If we're still here after 2 seconds, app might not be installed
-        setTimeout(() => {
-          const fallback = WALLET_APP_SCHEMES[walletType].fallback;
-          if (fallback && window.location.href !== fallback) {
-            window.open(fallback, '_blank');
-          }
-        }, 2000);
-      } catch (error) {
-        console.error('Error opening wallet app:', error);
-        const fallback = WALLET_APP_SCHEMES[walletType].fallback;
-        if (fallback) {
-          window.open(fallback, '_blank');
-        }
-      }
-    }
+    // For Sui Wallet (Slush), we trust dapp-kit to handle the connection
+    // If the wallet app is not installed, dapp-kit will show appropriate errors
+    // The connection will redirect to the app automatically on mobile
+    return Promise.resolve();
   }
+
+  // For other wallets, we could add specific handling if needed
+  return Promise.resolve();
 };
 
 // Get recommended mobile wallet for platform
@@ -151,12 +138,12 @@ export const getMobileErrorMessage = (errorType, walletType = 'wallet') => {
     },
     [MOBILE_ERRORS.CONNECTION_FAILED]: {
       title: 'Connection Failed',
-      message: `Unable to connect to ${walletType}. Please make sure the app is installed and try again.`,
+      message: `Unable to connect to ${walletType}. Make sure the app is installed and try again. If you're on mobile, you'll be redirected to sign in.`,
       action: 'Retry Connection'
     },
     [MOBILE_ERRORS.TRANSACTION_REJECTED]: {
-      title: 'Transaction Rejected',
-      message: 'The transaction was rejected in your wallet app. Please try again if you meant to approve it.',
+      title: 'Sign In Cancelled',
+      message: 'You cancelled the sign in request. Please try connecting again to access SU Messaging.',
       action: 'Try Again'
     },
     [MOBILE_ERRORS.NETWORK_ERROR]: {
