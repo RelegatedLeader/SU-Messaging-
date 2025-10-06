@@ -3,6 +3,7 @@ import { Container, Form, Button, Alert, Modal } from "react-bootstrap";
 import { Transaction } from "@mysten/sui/transactions";
 import { useCurrentAccount, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
 import { SuiClient } from "@mysten/sui/client";
+import { isMobileDevice } from "./utils/mobileWallet";
 
 function Settings() {
   const currentAccount = useCurrentAccount();
@@ -85,9 +86,13 @@ function Settings() {
 
       signAndExecuteTransactionBlock({
         transaction: tx,
-        options: {
+        options: isMobileDevice() ? {
           showEffects: true,
           showEvents: true,
+        } : {
+          showEffects: true,
+          showEvents: true,
+          showObjectChanges: true,
         },
       }, {
         onSuccess: (result) => {
@@ -172,9 +177,11 @@ function Settings() {
 
       const result = await signAndExecuteTransactionBlock({
         transaction: tx,
-        options: disableWalletPopup
+        options: isMobileDevice()
           ? { showEffects: true }
-          : { showEffects: true, showObjectChanges: true },
+          : (disableWalletPopup
+            ? { showEffects: true }
+            : { showEffects: true, showObjectChanges: true }),
       });
 
       localStorage.setItem("currentDisplayName", displayName);
@@ -228,7 +235,9 @@ function Settings() {
 
       const result = await signAndExecuteTransactionBlock({
         transaction: tx,
-        options: { showEffects: true },
+        options: isMobileDevice()
+          ? { showEffects: true }
+          : { showEffects: true, showObjectChanges: true },
       });
 
       setSubscriptionStatus("Subscription successful! Membership granted.");

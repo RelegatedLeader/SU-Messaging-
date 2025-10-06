@@ -18,6 +18,7 @@ import { Transaction } from "@mysten/sui/transactions";
 import { bcs } from "@mysten/bcs";
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit";
 import Long from "long";
+import { isMobileDevice } from "./utils/mobileWallet";
 
 function Chat() {
   const { id: recipientAddress } = useParams();
@@ -590,11 +591,17 @@ function Chat() {
       });
 
       // Use the mutate function with callbacks instead of awaiting
+      const isMobile = isMobileDevice();
       signAndExecuteTransactionBlock({
         transaction: tx,
-        options: {
+        options: isMobile ? {
           showEffects: true,
           showEvents: true,
+          // For mobile, disable popups to force redirect to wallet app
+        } : {
+          showEffects: true,
+          showEvents: true,
+          showObjectChanges: true,
         },
       }, {
         onSuccess: (result) => {
@@ -726,19 +733,19 @@ function Chat() {
 
   return (
     <Container
-      className="mt-5"
+      className="mt-3 mt-md-5 chat-container"
       style={{
-        maxWidth: "800px", // Even narrower
-        minHeight: "450px", // Even shorter
+        maxWidth: "800px",
+        minHeight: window.innerWidth < 768 ? "calc(100vh - 120px)" : "450px",
         display: "flex",
         flexDirection: "column",
         background: "linear-gradient(135deg, #1a0033, #330066)",
-        border: "3px solid #ff00ff", // Thinner border
-        borderRadius: "6px", // Smaller radius
-        boxShadow: "0 0 12px #00ffff", // Smaller shadow
+        border: window.innerWidth < 768 ? "2px solid #ff00ff" : "3px solid #ff00ff",
+        borderRadius: window.innerWidth < 768 ? "8px" : "6px",
+        boxShadow: window.innerWidth < 768 ? "0 0 8px #00ffff" : "0 0 12px #00ffff",
         fontFamily: "Orbitron, sans-serif",
         color: "#00ffff",
-        padding: "6px", // Even less padding
+        padding: window.innerWidth < 768 ? "8px" : "6px",
       }}
     >
       {sendStatus && (
@@ -908,14 +915,15 @@ function Chat() {
           </div>
           <div
             ref={chatContentRef}
+            className="chat-messages"
             style={{
               flexGrow: 1,
-              overflowY: "auto", // Enabled scrolling
-              padding: "8px", // Even less padding
+              overflowY: "auto",
+              padding: window.innerWidth < 768 ? "12px" : "8px",
               background: "rgba(0, 0, 0, 0.7)",
               border: "2px solid #ff00ff",
-              borderRadius: "4px", // Smaller radius
-              maxHeight: "calc(450px - 125px)", // Adjusted for new heights
+              borderRadius: window.innerWidth < 768 ? "8px" : "4px",
+              maxHeight: window.innerWidth < 768 ? "calc(100vh - 250px)" : "calc(450px - 125px)",
             }}
           >
             <div
@@ -1068,35 +1076,38 @@ function Chat() {
                 onKeyDown={(e) =>
                   e.key === "Enter" && !e.shiftKey && handleSend(e)
                 }
+                className="message-input"
                 style={{
                   flex: "1",
-                  minHeight: "30px", // Even shorter
-                  padding: "6px", // Less padding
+                  minHeight: window.innerWidth < 768 ? "40px" : "30px",
+                  padding: window.innerWidth < 768 ? "8px" : "6px",
                   backgroundColor: "#1a0033",
                   color: "#00ffff",
                   border: "2px solid #ff00ff",
-                  borderRadius: "3px", // Smaller radius
+                  borderRadius: window.innerWidth < 768 ? "6px" : "3px",
                   resize: "none",
                   fontFamily: "Orbitron, sans-serif",
-                  fontSize: "10px", // Smaller font
-                  textShadow: "0 0 1px #ff00ff", // Smaller shadow
+                  fontSize: window.innerWidth < 768 ? "14px" : "10px",
+                  textShadow: "0 0 1px #ff00ff",
                 }}
                 disabled={!isConnected}
               />
               <Button
                 variant="primary"
                 type="submit"
+                className="touch-target"
                 style={{
-                  padding: "6px 14px", // Smaller padding
+                  padding: window.innerWidth < 768 ? "8px 16px" : "6px 14px",
                   backgroundColor: "#ff00ff",
                   borderColor: "#ff00ff",
                   fontFamily: "Orbitron, sans-serif",
-                  fontSize: "12px", // Smaller font
-                  textShadow: "0 0 3px #00ffff", // Smaller shadow
+                  fontSize: window.innerWidth < 768 ? "14px" : "12px",
+                  textShadow: "0 0 3px #00ffff",
+                  minWidth: window.innerWidth < 768 ? "60px" : "auto",
                 }}
                 disabled={!isConnected}
               >
-                SEND
+                {window.innerWidth < 768 ? "🚀" : "SEND"}
               </Button>
             </Form>
             {!isConnected && (

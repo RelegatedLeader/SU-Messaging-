@@ -26,6 +26,16 @@ import logo from "./img/su-logo.png";
 import Dashboard from "./Dashboard";
 import Chat from "./Chat";
 import Settings from "./Settings";
+import {
+  isMobileDevice,
+  getMobilePlatform,
+  handleMobileWalletConnection,
+  getRecommendedMobileWallet,
+  shouldUseMobileFlow,
+  parseMobileError,
+  MOBILE_WALLETS
+} from "./utils/mobileWallet";
+import MobileErrorModal from "./components/MobileErrorModal";
 
 function AppContent() {
   const [userName, setUserName] = useState("");
@@ -49,6 +59,11 @@ function AppContent() {
   const [selectedWallet, setSelectedWallet] = useState("");
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Mobile error modal state
+  const [showMobileError, setShowMobileError] = useState(false);
+  const [mobileError, setMobileError] = useState(null);
+  const [mobileErrorType, setMobileErrorType] = useState(null);
 
   useEffect(() => {
     const client = new SuiClient({
@@ -116,28 +131,36 @@ function AppContent() {
   };
 
   const handleWebConnect = async () => {
-    if (window.innerWidth < 768 && selectedWallet) {
-      if (selectedWallet === "sui") {
-        try {
-          await connect(); // Initiate connection, targeting Slush app
-          if (isConnected && currentAccount) {
-            setShowWalletModal(false); // Close modal on success
-            window.location.href = "https://su-messaging.netlify.app"; // Redirect back to site
-          }
-        } catch (error) {
-          console.error("Connection failed:", error);
-          // Fallback to App Store only if app not installed
-          if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-            window.location.href =
-              "https://apps.apple.com/us/app/slush-a-sui-wallet/id6476572140";
-          }
-        }
+    if (shouldUseMobileFlow() && selectedWallet) {
+      try {
+        await handleMobileWalletConnection(selectedWallet);
+        // The mobile wallet utility handles the redirect
+        // We don't need to check connection status here as it will redirect
+      } catch (error) {
+        console.error("Mobile wallet connection failed:", error);
+        const errorType = parseMobileError(error);
+        setMobileError(error);
+        setMobileErrorType(errorType);
+        setShowMobileError(true);
+      }
+    } else {
+      // Desktop flow - use the existing connect function
+      try {
+        await connect();
+      } catch (error) {
+        console.error("Desktop wallet connection failed:", error);
+        const errorType = parseMobileError(error);
+        setMobileError(error);
+        setMobileErrorType(errorType);
+        setShowMobileError(true);
       }
     }
   };
 
-  // Simple mobile detection based on window width (e.g., < 768px for mobile)
-  const isMobile = window.innerWidth < 768;
+  // Enhanced mobile detection
+  const isMobile = isMobileDevice();
+  const mobilePlatform = getMobilePlatform();
+  const recommendedWallet = getRecommendedMobileWallet();
 
   return (
     <div>
@@ -509,9 +532,28 @@ function AppContent() {
               fontSize: "1em",
             }}
           >
-            {window.innerWidth < 768 ? (
+            {isMobile ? (
               <div>
-                <p>Please select your wallet to connect:</p>
+                <p style={{ fontSize: "1.1em", marginBottom: "15px" }}>
+                  📱 <strong>Mobile Connection</strong>
+                </p>
+                <p style={{ marginBottom: "15px" }}>
+                  For the best experience on mobile, we recommend using the Sui Wallet app.
+                  This will redirect you to sign transactions securely.
+                </p>
+                <div style={{
+                  background: "rgba(0, 255, 255, 0.1)",
+                  border: "1px solid #00ffff",
+                  borderRadius: "8px",
+                  padding: "12px",
+                  marginBottom: "15px"
+                }}>
+                  <strong>Recommended: {recommendedWallet === MOBILE_WALLETS.SUI_WALLET ? 'Sui Wallet' : 'Sui Wallet'}</strong>
+                  <br />
+                  <small style={{ color: "#ffffff" }}>
+                    {mobilePlatform === 'ios' ? 'Available on the App Store' : 'Available on Google Play'}
+                  </small>
+                </div>
                 <Form.Select
                   value={selectedWallet}
                   onChange={(e) => setSelectedWallet(e.target.value)}
@@ -520,27 +562,27 @@ function AppContent() {
                     color: "#00ffff",
                     border: `1px dashed ${menuColor}`,
                     borderRadius: "5px",
-                    padding: "5px",
+                    padding: "8px",
                     marginBottom: "10px",
+                    fontSize: "0.9em",
                   }}
                 >
                   <option value="">Select Wallet</option>
-                  <option value="sui">SUI Wallet (Slush)</option>
+                  <option value={MOBILE_WALLETS.SUI_WALLET}>Sui Wallet</option>
                 </Form.Select>
-                <p>
-                  This will open the Slush Wallet app for connection. After
-                  signing the request, you’ll be redirected back to{" "}
-                  <a
-                    href="https://su-messaging.netlify.app"
-                    style={{ color: "#00ffff", textDecoration: "underline" }}
-                  >
-                    https://su-messaging.netlify.app
-                  </a>{" "}
-                  signed in.
+                <p style={{ fontSize: "0.9em", color: "#ffffff" }}>
+                  <strong>Note:</strong> You'll be redirected to your wallet app to approve the connection.
+                  Make sure you have the wallet app installed.
                 </p>
               </div>
             ) : (
-              "Please connect your wallet to access the Dashboard and enjoy the full SU experience!"
+              <div>
+                <p>🖥️ <strong>Desktop Connection</strong></p>
+                <p>
+                  Please connect your wallet to access the Dashboard and enjoy the full SU experience!
+                  We recommend using a browser wallet extension for the best experience.
+                </p>
+              </div>
             )}
           </Modal.Body>
           <Modal.Footer
@@ -550,23 +592,30 @@ function AppContent() {
             }}
           >
             <Button
-              variant="primary"
+              variant="secondary"
               onClick={() => setShowWalletModal(false)}
               style={{
-                backgroundColor: menuColor,
+                backgroundColor: "transparent",
                 borderColor: menuColor,
-                textShadow: "0 0 6px #00ffff",
+                color: menuColor,
+                textShadow: "0 0 4px #00ffff",
                 padding: "6px 15px",
                 fontSize: "1em",
                 borderRadius: "8px",
-                transition: "background-color 0.4s",
+                transition: "all 0.3s",
               }}
-              onMouseEnter={(e) => (e.target.style.backgroundColor = "#00ffff")}
-              onMouseLeave={(e) => (e.target.style.backgroundColor = menuColor)}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = `${menuColor}20`;
+                e.target.style.color = "#00ffff";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = "transparent";
+                e.target.style.color = menuColor;
+              }}
             >
               Close
             </Button>
-            {window.innerWidth < 768 && selectedWallet && (
+            {isMobile && selectedWallet && (
               <Button
                 variant="primary"
                 onClick={handleWebConnect}
@@ -574,10 +623,11 @@ function AppContent() {
                   backgroundColor: menuColor,
                   borderColor: menuColor,
                   textShadow: "0 0 6px #00ffff",
-                  padding: "6px 15px",
+                  padding: "8px 20px",
                   fontSize: "1em",
                   borderRadius: "8px",
-                  transition: "background-color 0.4s",
+                  transition: "background-color 0.3s",
+                  fontWeight: "bold",
                 }}
                 onMouseEnter={(e) =>
                   (e.target.style.backgroundColor = "#00ffff")
@@ -586,11 +636,21 @@ function AppContent() {
                   (e.target.style.backgroundColor = menuColor)
                 }
               >
-                Connect
+                🚀 Connect Mobile Wallet
               </Button>
             )}
           </Modal.Footer>
         </Modal>
+
+        {/* Mobile Error Modal */}
+        <MobileErrorModal
+          show={showMobileError}
+          onHide={() => setShowMobileError(false)}
+          error={mobileError}
+          errorType={mobileErrorType}
+          onRetry={handleWebConnect}
+          menuColor={menuColor}
+        />
       </div>
   );
 }

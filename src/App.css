@@ -160,3 +160,167 @@ div[role="dialog"][aria-labelledby*="wallet"] {
     transform: translateY(0);
   }
 }
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+  }
+
+  .navbar {
+    padding: 8px 12px !important;
+  }
+
+  .navbar-brand {
+    font-size: 1.1rem !important;
+  }
+
+  .navbar-brand img {
+    width: 35px !important;
+    height: 35px !important;
+  }
+
+  .nav-link {
+    font-size: 0.9rem !important;
+    padding: 6px 8px !important;
+  }
+
+  .btn {
+    font-size: 0.9rem !important;
+    padding: 6px 12px !important;
+  }
+
+  h1 {
+    font-size: 1.8rem !important;
+  }
+
+  h2 {
+    font-size: 1.5rem !important;
+  }
+
+  h3 {
+    font-size: 1.3rem !important;
+  }
+
+  .container {
+    padding-left: 15px !important;
+    padding-right: 15px !important;
+  }
+
+  /* Modal responsiveness */
+  .modal-dialog {
+    margin: 10px !important;
+    max-width: calc(100vw - 20px) !important;
+  }
+
+  .modal-content {
+    border-radius: 12px !important;
+  }
+
+  .modal-body {
+    padding: 15px !important;
+  }
+
+  /* Form responsiveness */
+  .form-control {
+    font-size: 16px !important; /* Prevents zoom on iOS */
+    padding: 10px !important;
+  }
+
+  .form-select {
+    font-size: 16px !important; /* Prevents zoom on iOS */
+  }
+
+  /* Button responsiveness */
+  .btn {
+    min-height: 44px !important; /* iOS touch target minimum */
+    touch-action: manipulation !important;
+  }
+
+  /* Chat specific mobile styles */
+  .chat-container {
+    height: calc(100vh - 120px) !important;
+    max-height: calc(100vh - 120px) !important;
+  }
+
+  .chat-messages {
+    max-height: calc(100vh - 200px) !important;
+  }
+
+  .message-input {
+    font-size: 16px !important; /* Prevents zoom on iOS */
+  }
+
+  /* Touch-friendly interactions */
+  .touch-target {
+    min-height: 44px !important;
+    min-width: 44px !important;
+  }
+
+  /* Improve readability on small screens */
+  .text-shadow {
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7) !important;
+  }
+
+  /* Wallet dropdown mobile optimization */
+  .wallet-dropdown-container {
+    position: static !important;
+    width: 100% !important;
+    margin-top: 10px !important;
+  }
+
+  .wallet-dropdown {
+    position: static !important;
+    box-shadow: none !important;
+    border: 2px solid var(--primary-blue) !important;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Extra small screens */
+  .navbar-brand {
+    font-size: 1rem !important;
+  }
+
+  .navbar-brand img {
+    width: 30px !important;
+    height: 30px !important;
+  }
+
+  h1 {
+    font-size: 1.5rem !important;
+  }
+
+  .container {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
+  .modal-dialog {
+    margin: 5px !important;
+    max-width: calc(100vw - 10px) !important;
+  }
+}
+
+/* iOS specific fixes */
+@supports (-webkit-touch-callout: none) {
+  .form-control,
+  .form-select {
+    font-size: 16px !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    border-radius: 8px !important;
+  }
+
+  .btn {
+    -webkit-tap-highlight-color: rgba(0, 255, 255, 0.3) !important;
+  }
+}
+
+/* Android specific fixes */
+@supports not (-webkit-touch-callout: none) {
+  .form-control,
+  .form-select {
+    font-size: 16px !important;
+  }
+}
