@@ -19,7 +19,8 @@ function Dashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [menuColor, setMenuColor] = useState("#ff00ff"); // Sync with App.js default
   const [isLoadingChats, setIsLoadingChats] = useState(false);
-  const [mobileView, setMobileView] = useState("start"); // "start" or "chats" for mobile
+  const [mobileView, setMobileView] = useState("start"); // "start", "chats", or "people" for mobile
+  const [showCallPopup, setShowCallPopup] = useState(false);
   const navigate = useNavigate();
   const currentAccount = useCurrentAccount();
   const isConnected = !!currentAccount;
@@ -256,6 +257,22 @@ function Dashboard() {
             >
               💬 Recent Chats
             </Button>
+            <Button
+              onClick={() => setMobileView("people")}
+              style={{
+                backgroundColor: mobileView === "people" ? menuColor : "#330066",
+                border: `2px solid ${menuColor}`,
+                color: "#00ffff",
+                textShadow: "0 0 6px #00ffff",
+                padding: "8px 16px",
+                borderRadius: "8px",
+                fontSize: "14px",
+                flex: "1",
+                minHeight: "44px", // Touch-friendly
+              }}
+            >
+              👥 People
+            </Button>
           </div>
         )}
 
@@ -272,6 +289,7 @@ function Dashboard() {
               borderRadius: window.innerWidth < 768 ? "8px" : "6px",
               background: "linear-gradient(135deg, #1a0033, #330066)",
               boxShadow: window.innerWidth < 768 ? "0 0 15px rgba(0, 255, 255, 0.4)" : "0 0 12px rgba(0, 255, 255, 0.4)",
+              marginBottom: window.innerWidth < 768 ? "16px" : "0",
             }}
           >
           <Form.Group controlId="recipientAddress">
@@ -328,6 +346,7 @@ function Dashboard() {
               display: "flex",
               flexDirection: "column",
               gap: "8px",
+              marginBottom: window.innerWidth < 768 ? "16px" : "0",
             }}
           >
           <InputGroup
@@ -529,6 +548,213 @@ function Dashboard() {
           </div>
         </div>
       )}
+
+      {/* People Section - Show on desktop or when selected on mobile */}
+      {(window.innerWidth >= 768 || mobileView === "people") && (
+        <div
+          style={{
+            flex: window.innerWidth < 768 ? "none" : "2 1 400px",
+            width: window.innerWidth < 768 ? "100%" : "auto",
+            minWidth: window.innerWidth < 768 ? "auto" : "300px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "8px",
+            marginBottom: window.innerWidth < 768 ? "16px" : "0",
+          }}
+        >
+          <div
+            style={{
+              overflow: "auto",
+            }}
+          >
+            <h4 style={{ textShadow: "0 0 10px #00ffff", marginBottom: "4px", fontSize: "14px" }}>
+              Contacts
+            </h4>
+            {recentChats.length === 0 ? (
+              <p style={{ color: "#00ffff" }}>No contacts yet. Start a chat to add contacts!</p>
+            ) : (
+              <ListGroup
+                style={{
+                  background: "rgba(0, 0, 0, 0.5)",
+                  border: `2px solid ${menuColor}`,
+                  borderRadius: "4px",
+                  boxShadow: "0 0 12px rgba(0, 255, 255, 0.4)",
+                }}
+              >
+                {recentChats.map((chat, index) => (
+                  <ListGroup.Item
+                    key={index}
+                    style={{
+                      backgroundColor: "#1a0033",
+                      color: "#00ffff",
+                      position: "relative",
+                      padding: "6px",
+                      display: "flex",
+                      flexDirection: "column",
+                      borderBottom: `1px dashed ${menuColor}`,
+                      transition: "background-color 0.3s",
+                    }}
+                    onMouseEnter={(e) =>
+                      (e.target.style.backgroundColor = "#00ccff")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.target.style.backgroundColor = "#1a0033")
+                    }
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: "8px",
+                          height: "8px",
+                          backgroundColor: "#00ff00",
+                          borderRadius: "50%",
+                          border: `1px solid ${menuColor}`,
+                        }}
+                      />
+                      <Link
+                        to={`/chat/${chat.address}`}
+                        style={{
+                          color: "#00ffff",
+                          textDecoration: "none",
+                          fontWeight: "bold",
+                          marginBottom: "3px",
+                          textShadow: "0 0 4px #ff00ff",
+                          flex: "1",
+                          fontSize: "12px",
+                        }}
+                      >
+                        {chat.displayName}
+                      </Link>
+                      <Button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setShowCallPopup(true);
+                        }}
+                        style={{
+                          backgroundColor: "transparent",
+                          border: `1px solid ${menuColor}`,
+                          color: menuColor,
+                          fontSize: "12px",
+                          padding: "4px 8px",
+                          borderRadius: "6px",
+                          transition: "all 0.2s ease",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.target.style.backgroundColor = menuColor;
+                          e.target.style.color = '#1a0033';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.backgroundColor = 'transparent';
+                          e.target.style.color = menuColor;
+                        }}
+                      >
+                        📞 Call
+                      </Button>
+                    </div>
+                  </ListGroup.Item>
+                ))}
+              </ListGroup>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Call Feature Coming Soon Popup */}
+      {showCallPopup && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            backdropFilter: 'blur(5px)',
+          }}
+          onClick={() => setShowCallPopup(false)}
+        >
+          <div
+            style={{
+              background: 'linear-gradient(135deg, #0a001a, #1a0033, #330066)',
+              border: `3px solid ${menuColor}`,
+              borderRadius: '20px',
+              padding: '24px',
+              maxWidth: '90vw',
+              boxShadow: `0 0 50px ${menuColor}60`,
+              textAlign: 'center',
+              animation: 'fadeIn 0.3s ease-out',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{
+              fontSize: '48px',
+              marginBottom: '16px',
+              filter: 'drop-shadow(0 0 10px #00ffff)',
+            }}>
+              🚀
+            </div>
+            <h3 style={{
+              color: '#00ffff',
+              textShadow: '0 0 10px #00ffff',
+              marginBottom: '16px',
+              fontFamily: '"Orbitron", sans-serif',
+            }}>
+              SUPER ENCRYPTED VOICE CALLS
+            </h3>
+            <p style={{
+              color: '#00ffff',
+              marginBottom: '20px',
+              lineHeight: '1.6',
+              fontSize: '16px',
+            }}>
+              Coming soon! We're building the most secure voice calling system on Sui blockchain.
+              <br /><br />
+              Features will include:
+              <br />• End-to-end encryption
+              <br />• Decentralized routing
+              <br />• No metadata collection
+              <br />• Quantum-resistant security
+            </p>
+            <Button
+              onClick={() => setShowCallPopup(false)}
+              style={{
+                background: `linear-gradient(135deg, ${menuColor}, ${menuColor}dd)`,
+                border: `2px solid ${menuColor}`,
+                color: '#00ffff',
+                textShadow: '0 0 8px #00ffff',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                padding: '12px 24px',
+                borderRadius: '12px',
+                boxShadow: `0 0 20px ${menuColor}40`,
+                transition: 'all 0.3s ease',
+                fontFamily: '"Orbitron", sans-serif',
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.boxShadow = `0 0 30px ${menuColor}60`;
+                e.target.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.boxShadow = `0 0 20px ${menuColor}40`;
+                e.target.style.transform = 'translateY(0)';
+              }}
+            >
+              GOT IT! 💫
+            </Button>
+          </div>
+        </div>
+      )}
+
       </div>
       {error && (
         <Alert

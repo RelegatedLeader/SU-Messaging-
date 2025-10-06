@@ -43,6 +43,7 @@ function Chat() {
   const [senderNames, setSenderNames] = useState(new Map()); // Map of address -> display name
   const chatContentRef = useRef(null);
   const [lastFetchTime, setLastFetchTime] = useState(null);
+  const [showMobileChatList, setShowMobileChatList] = useState(false); // Toggle for mobile chat list
   const packageId =
     "0x2aaad5d1ce7482b5850dd11642358bf23cb0e6432b12a581eb77d212dca54045";
 
@@ -788,16 +789,60 @@ function Chat() {
           minHeight: "0",
         }}
       >
+        {/* Mobile Chat List Toggle Button */}
+        {window.innerWidth < 768 && (
+          <div
+            style={{
+              position: "absolute",
+              top: "10px",
+              left: "10px",
+              zIndex: 10,
+            }}
+          >
+            <Button
+              onClick={() => setShowMobileChatList(!showMobileChatList)}
+              style={{
+                backgroundColor: "#ff00ff",
+                border: "2px solid #ff00ff",
+                color: "#00ffff",
+                textShadow: "0 0 6px #00ffff",
+                padding: "8px 12px",
+                borderRadius: "8px",
+                fontSize: "14px",
+                boxShadow: "0 0 10px #ff00ff",
+                transition: "all 0.3s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.boxShadow = "0 0 15px #ff00ff";
+                e.target.style.transform = "scale(1.05)";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.boxShadow = "0 0 10px #ff00ff";
+                e.target.style.transform = "scale(1)";
+              }}
+            >
+              {showMobileChatList ? "✕" : "💬"}
+            </Button>
+          </div>
+        )}
+
+        {/* Chat List Sidebar */}
         <Col
-          md={2} // Narrower sidebar
+          md={2}
           style={{
             backgroundColor: "#1a0033",
             minHeight: "100%",
-            position: "relative",
             padding: "0",
             borderRight: "3px dashed #ff00ff",
-            display: "flex",
+            display: window.innerWidth < 768 ? (showMobileChatList ? "flex" : "none") : "flex",
             flexDirection: "column",
+            width: window.innerWidth < 768 ? "280px" : "auto",
+            position: window.innerWidth < 768 ? "absolute" : "relative",
+            left: window.innerWidth < 768 ? "0" : "auto",
+            top: window.innerWidth < 768 ? "0" : "auto",
+            height: window.innerWidth < 768 ? "100%" : "auto",
+            zIndex: window.innerWidth < 768 ? 5 : "auto",
+            boxShadow: window.innerWidth < 768 ? "2px 0 10px rgba(0, 0, 0, 0.5)" : "none",
           }}
         >
           <div
@@ -864,15 +909,33 @@ function Chat() {
             ))}
           </ListGroup>
         </Col>
+
+        {/* Mobile Overlay */}
+        {window.innerWidth < 768 && showMobileChatList && (
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+              zIndex: 4,
+            }}
+            onClick={() => setShowMobileChatList(false)}
+          />
+        )}
+
         <Col
-          md={10} // Wider chat area
+          md={10}
           style={{
             padding: "0",
             position: "relative",
             display: "flex",
             flexDirection: "column",
             minHeight: "0",
-            flex: "1",
+            flex: window.innerWidth < 768 ? "1" : "1",
+            width: window.innerWidth < 768 ? "100%" : "auto",
           }}
         >
           <div
