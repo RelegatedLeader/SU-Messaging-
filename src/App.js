@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
-import { Container, Navbar, Nav, Button, Modal, Form } from "react-bootstrap";
+import { Container, Navbar, Nav, Button, Modal } from "react-bootstrap";
 import {
   SuiClientProvider,
   WalletProvider,
@@ -31,7 +31,6 @@ import Settings from "./Settings";
 import {
   isMobileDevice,
   parseMobileError,
-  MOBILE_WALLETS
 } from "./utils/mobileWallet";
 import MobileErrorModal from "./components/MobileErrorModal";
 
@@ -243,7 +242,6 @@ function AppContent() {
   const currentWallet = useCurrentWallet();
   const isConnected = !!currentAccount;
   const [showWalletDropdown, setShowWalletDropdown] = useState(false);
-  const [selectedWallet, setSelectedWallet] = useState("");
   const [showWalletConnectModal, setShowWalletConnectModal] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -762,53 +760,161 @@ function AppContent() {
               color: "#00ffff",
               textShadow: "0 0 4px #ff00ff",
               fontSize: "1em",
+              padding: "25px",
             }}
           >
             {isMobile ? (
               <div>
-                <p style={{ fontSize: "1.1em", marginBottom: "15px" }}>
-                  📱 <strong>Mobile Connection</strong>
-                </p>
-                <p style={{ marginBottom: "15px" }}>
-                  Connect your Slush Wallet to sign in and start using SU Messaging.
-                  You'll be redirected to your wallet app to approve the connection securely.
-                </p>
                 <div style={{
-                  background: "rgba(0, 255, 255, 0.1)",
-                  border: "1px solid #00ffff",
-                  borderRadius: "8px",
-                  padding: "12px",
-                  marginBottom: "15px"
+                  textAlign: 'center',
+                  marginBottom: '25px'
                 }}>
-                  <strong>🔐 Sign In Process:</strong>
-                  <br />
-                  <small style={{ color: "#ffffff" }}>
-                    1. Click "Sign In with Slush Wallet"<br />
-                    2. Get redirected to Slush wallet app<br />
-                    3. Review and sign the authentication message<br />
-                    4. Return to SU Messaging automatically
-                  </small>
+                  <div style={{
+                    fontSize: '3em',
+                    marginBottom: '10px',
+                    textShadow: '0 0 20px #00ffff',
+                    animation: 'pulse 2s infinite'
+                  }}>
+                    �
+                  </div>
+                  <h4 style={{
+                    color: '#00ffff',
+                    textShadow: '0 0 12px #00ffff',
+                    marginBottom: '15px',
+                    fontFamily: 'Orbitron, sans-serif'
+                  }}>
+                    Connect with Slush Wallet
+                  </h4>
+                  <p style={{
+                    color: '#ffffff',
+                    marginBottom: '20px',
+                    fontSize: '1em'
+                  }}>
+                    Sign in securely with your Slush Wallet to access SU Messaging
+                  </p>
                 </div>
-                <Form.Select
-                  value={selectedWallet}
-                  onChange={(e) => setSelectedWallet(e.target.value)}
+
+                {/* Cyberpunk-styled Slush Wallet Button */}
+                <div
+                  onClick={handleWebConnect}
                   style={{
-                    backgroundColor: "#1a0033",
-                    color: "#00ffff",
-                    border: `1px dashed ${menuColor}`,
-                    borderRadius: "5px",
-                    padding: "8px",
-                    marginBottom: "10px",
-                    fontSize: "0.9em",
+                    background: `linear-gradient(135deg, ${menuColor}20, ${menuColor}40)`,
+                    border: `3px solid ${menuColor}`,
+                    borderRadius: '16px',
+                    padding: '20px',
+                    marginBottom: '20px',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '16px',
+                    fontFamily: 'Orbitron, sans-serif',
+                    boxShadow: `0 0 25px ${menuColor}40, inset 0 0 25px ${menuColor}10`,
+                    position: 'relative',
+                    overflow: 'hidden',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.boxShadow = `0 0 35px ${menuColor}60, inset 0 0 35px ${menuColor}20`;
+                    e.target.style.transform = 'translateY(-3px)';
+                    e.target.style.borderColor = '#00ffff';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.boxShadow = `0 0 25px ${menuColor}40, inset 0 0 25px ${menuColor}10`;
+                    e.target.style.transform = 'translateY(0)';
+                    e.target.style.borderColor = menuColor;
                   }}
                 >
-                  <option value="">Select Wallet</option>
-                  <option value={MOBILE_WALLETS.SUI_WALLET}>Sui Wallet</option>
-                </Form.Select>
-                <p style={{ fontSize: "0.9em", color: "#ffffff" }}>
-                  <strong>🔐 Sign In Required:</strong> You'll be redirected to Sui Wallet (Slush) to sign an authentication message.
-                  This proves ownership of your address and logs you into SU Messaging.
-                </p>
+                  {/* Shimmer effect */}
+                  <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: `linear-gradient(45deg, transparent 30%, ${menuColor}30 50%, transparent 70%)`,
+                    animation: 'shimmer 3s infinite',
+                    pointerEvents: 'none',
+                    zIndex: 1,
+                  }} />
+
+                  <div style={{
+                    width: '16px',
+                    height: '16px',
+                    borderRadius: '50%',
+                    backgroundColor: '#00ff00',
+                    boxShadow: '0 0 12px #00ff00',
+                    animation: 'pulse 2s infinite',
+                    zIndex: 2,
+                    position: 'relative',
+                  }} />
+
+                  <div style={{
+                    flex: 1,
+                    zIndex: 2,
+                    position: 'relative',
+                  }}>
+                    <div style={{
+                      color: '#00ffff',
+                      fontSize: '1.2em',
+                      fontWeight: 'bold',
+                      textShadow: '0 0 8px #00ffff',
+                      marginBottom: '4px',
+                    }}>
+                      Slush Wallet
+                    </div>
+                    <div style={{
+                      color: '#ffffff',
+                      fontSize: '0.9em',
+                      opacity: 0.9,
+                    }}>
+                      Secure blockchain authentication
+                    </div>
+                  </div>
+
+                  <div style={{
+                    color: menuColor,
+                    fontSize: '1.5em',
+                    textShadow: `0 0 8px ${menuColor}`,
+                    zIndex: 2,
+                    position: 'relative',
+                  }}>
+                    →
+                  </div>
+                </div>
+
+                <div style={{
+                  background: 'rgba(0, 255, 255, 0.1)',
+                  border: '2px solid #00ffff',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  marginBottom: '15px',
+                  fontSize: '0.9em',
+                }}>
+                  <div style={{
+                    color: '#00ffff',
+                    fontWeight: 'bold',
+                    marginBottom: '8px',
+                    textShadow: '0 0 6px #00ffff',
+                  }}>
+                    🔐 Secure Sign-In Process:
+                  </div>
+                  <div style={{ color: '#ffffff', lineHeight: '1.5' }}>
+                    1. Tap "Connect with Slush Wallet"<br />
+                    2. Get redirected to Slush wallet app<br />
+                    3. Review and sign authentication message<br />
+                    4. Return to SU Messaging automatically
+                  </div>
+                </div>
+
+                <div style={{
+                  textAlign: 'center',
+                  color: menuColor,
+                  fontSize: '0.8em',
+                  opacity: 0.8,
+                  textShadow: `0 0 4px ${menuColor}`,
+                }}>
+                  Your connection is encrypted and secure
+                </div>
               </div>
             ) : (
               <div>
@@ -824,6 +930,8 @@ function AppContent() {
             style={{
               background: "linear-gradient(135deg, #1a0033, #440088)",
               borderTop: `2px solid ${menuColor}`,
+              justifyContent: 'center',
+              padding: '15px',
             }}
           >
             <Button
@@ -831,49 +939,30 @@ function AppContent() {
               onClick={() => setShowWalletModal(false)}
               style={{
                 backgroundColor: "transparent",
-                borderColor: menuColor,
+                border: `2px solid ${menuColor}`,
                 color: menuColor,
-                textShadow: "0 0 4px #00ffff",
-                padding: "6px 15px",
+                textShadow: "0 0 6px #00ffff",
+                padding: "10px 20px",
                 fontSize: "1em",
-                borderRadius: "8px",
+                borderRadius: "12px",
                 transition: "all 0.3s",
+                fontFamily: 'Orbitron, sans-serif',
+                fontWeight: 'bold',
+                minWidth: '120px',
               }}
               onMouseEnter={(e) => {
                 e.target.style.backgroundColor = `${menuColor}20`;
                 e.target.style.color = "#00ffff";
+                e.target.style.boxShadow = `0 0 15px ${menuColor}40`;
               }}
               onMouseLeave={(e) => {
                 e.target.style.backgroundColor = "transparent";
                 e.target.style.color = menuColor;
+                e.target.style.boxShadow = 'none';
               }}
             >
-              Close
+              Cancel
             </Button>
-            {isMobile && (
-              <Button
-                variant="primary"
-                onClick={handleWebConnect}
-                style={{
-                  backgroundColor: menuColor,
-                  borderColor: menuColor,
-                  textShadow: "0 0 6px #00ffff",
-                  padding: "8px 20px",
-                  fontSize: "1em",
-                  borderRadius: "8px",
-                  transition: "background-color 0.3s",
-                  fontWeight: "bold",
-                }}
-                onMouseEnter={(e) =>
-                  (e.target.style.backgroundColor = "#00ffff")
-                }
-                onMouseLeave={(e) =>
-                  (e.target.style.backgroundColor = menuColor)
-                }
-              >
-                � Sign In with Wallet
-              </Button>
-            )}
           </Modal.Footer>
         </Modal>
 
