@@ -42,10 +42,57 @@ function AppContent() {
   const connect = useConnectWallet({
     onSuccess: () => {
       console.log('Wallet connected successfully');
-      navigate('/dashboard'); // Navigate to dashboard on successful connection
+
+      // After successful connection, sign authentication message
+      if (currentAccount) {
+        const message = `Sign in to SU Messaging\n\nAddress: ${currentAccount.address}\nTimestamp: ${new Date().toISOString()}`;
+
+        signPersonalMessage({
+          message: new TextEncoder().encode(message),
+        }, {
+          onSuccess: (result) => {
+            console.log('Authentication signature successful:', result);
+            navigate('/dashboard');
+          },
+          onError: (error) => {
+            console.error('Authentication signature failed:', error);
+            const errorType = parseMobileError(error);
+            setMobileError(error);
+            setMobileErrorType(errorType);
+            setShowMobileError(true);
+          }
+        });
+      } else {
+        // If no account yet, wait a bit and try again (for mobile redirect timing)
+        setTimeout(() => {
+          if (currentAccount) {
+            const message = `Sign in to SU Messaging\n\nAddress: ${currentAccount.address}\nTimestamp: ${new Date().toISOString()}`;
+
+            signPersonalMessage({
+              message: new TextEncoder().encode(message),
+            }, {
+              onSuccess: (result) => {
+                console.log('Authentication signature successful:', result);
+                navigate('/dashboard');
+              },
+              onError: (error) => {
+                console.error('Authentication signature failed:', error);
+                const errorType = parseMobileError(error);
+                setMobileError(error);
+                setMobileErrorType(errorType);
+                setShowMobileError(true);
+              }
+            });
+          }
+        }, 1000);
+      }
     },
     onError: (error) => {
       console.error('Wallet connection failed:', error);
+      const errorType = parseMobileError(error);
+      setMobileError(error);
+      setMobileErrorType(errorType);
+      setShowMobileError(true);
     }
   });
   const disconnect = useDisconnectWallet();
@@ -132,31 +179,11 @@ function AppContent() {
   };
 
   const handleWebConnect = async () => {
-    if (shouldUseMobileFlow() && selectedWallet) {
+    if (shouldUseMobileFlow()) {
       try {
-        // First connect to the wallet (this will redirect to app on mobile)
+        // Connect to wallet - dapp-kit will handle wallet selection and redirect to app on mobile
+        // The signing and navigation will happen in the connect onSuccess callback
         await connect();
-
-        // If connection successful and we have an account, sign authentication message
-        if (currentAccount) {
-          const message = `Sign in to SU Messaging\n\nAddress: ${currentAccount.address}\nTimestamp: ${new Date().toISOString()}`;
-
-          signPersonalMessage({
-            message: new TextEncoder().encode(message),
-          }, {
-            onSuccess: (result) => {
-              console.log('Authentication signature successful:', result);
-              navigate('/dashboard');
-            },
-            onError: (error) => {
-              console.error('Authentication signature failed:', error);
-              const errorType = parseMobileError(error);
-              setMobileError(error);
-              setMobileErrorType(errorType);
-              setShowMobileError(true);
-            }
-          });
-        }
       } catch (error) {
         console.error("Mobile wallet connection failed:", error);
         const errorType = parseMobileError(error);
@@ -165,30 +192,9 @@ function AppContent() {
         setShowMobileError(true);
       }
     } else {
-      // Desktop flow - connect and then sign
+      // Desktop flow - connect (signing will happen in onSuccess callback)
       try {
         await connect();
-
-        // If connection successful, sign authentication message
-        if (currentAccount) {
-          const message = `Sign in to SU Messaging\n\nAddress: ${currentAccount.address}\nTimestamp: ${new Date().toISOString()}`;
-
-          signPersonalMessage({
-            message: new TextEncoder().encode(message),
-          }, {
-            onSuccess: (result) => {
-              console.log('Authentication signature successful:', result);
-              navigate('/dashboard');
-            },
-            onError: (error) => {
-              console.error('Authentication signature failed:', error);
-              const errorType = parseMobileError(error);
-              setMobileError(error);
-              setMobileErrorType(errorType);
-              setShowMobileError(true);
-            }
-          });
-        }
       } catch (error) {
         console.error("Desktop wallet connection failed:", error);
         const errorType = parseMobileError(error);
@@ -658,7 +664,7 @@ function AppContent() {
             >
               Close
             </Button>
-            {isMobile && selectedWallet && (
+            {isMobile && (
               <Button
                 variant="primary"
                 onClick={handleWebConnect}
