@@ -37,28 +37,49 @@ import MobileErrorModal from "./components/MobileErrorModal";
 // Auth callback component for handling return from Slush wallet
 function AuthCallback() {
   const navigate = useNavigate();
-  const connect = useConnectWallet();
+  const currentAccount = useCurrentAccount();
+  const { mutate: signPersonalMessage } = useSignPersonalMessage();
   const [menuColor] = useState("#ff00ff");
 
   React.useEffect(() => {
     const handleAuthCallback = async () => {
       try {
         console.log('Handling auth callback from Slush wallet');
-        
-        // Attempt to connect the wallet
-        await connect.mutateAsync();
-        
-        // If successful, redirect to dashboard
-        navigate('/dashboard');
+
+        // Check if user is already connected
+        if (currentAccount) {
+          console.log('User is connected, proceeding with signature');
+
+          // Sign authentication message
+          const message = `Sign in to SU Messaging\n\nAddress: ${currentAccount.address}\nTimestamp: ${new Date().toISOString()}`;
+
+          signPersonalMessage({
+            message: new TextEncoder().encode(message),
+          }, {
+            onSuccess: (result) => {
+              console.log('Authentication signature successful:', result);
+              navigate('/dashboard');
+            },
+            onError: (error) => {
+              console.error('Authentication signature failed:', error);
+              navigate('/');
+            }
+          });
+        } else {
+          console.log('User not connected, redirecting to home');
+          // If not connected, redirect back to home
+          navigate('/');
+        }
+
       } catch (error) {
         console.error('Auth callback failed:', error);
-        // If connection fails, redirect back to home
         navigate('/');
       }
     };
 
-    handleAuthCallback();
-  }, [connect, navigate]);
+    // Small delay to ensure wallet state is updated
+    setTimeout(handleAuthCallback, 1000);
+  }, [currentAccount, signPersonalMessage, navigate]);
 
   return (
     <Container
@@ -74,10 +95,10 @@ function AuthCallback() {
       }}
     >
       <h2 style={{ textShadow: "0 0 15px #00ffff" }}>
-        Connecting to Wallet...
+        Completing Authentication...
       </h2>
       <p style={{ textShadow: "0 0 6px #ff00ff" }}>
-        Please wait while we establish your wallet connection.
+        Please wait while we verify your wallet connection and sign the authentication message.
       </p>
       <div style={{ margin: "20px 0" }}>
         <div style={{
@@ -90,6 +111,9 @@ function AuthCallback() {
           margin: "0 auto",
         }} />
       </div>
+      <p style={{ fontSize: "0.9em", opacity: 0.8 }}>
+        If this takes too long, please try connecting again.
+      </p>
     </Container>
   );
 }
@@ -165,38 +189,35 @@ function AppContent() {
   const location = useLocation();
 
   // Handle deep link to Slush wallet app for mobile authentication
-  const handleSlushDeepLink = () => {
+  const handleSlushDeepLink = async () => {
     if (isMobileDevice()) {
       try {
-        // Get the current URL for redirect back
-        const currentUrl = window.location.origin;
-        const redirectUrl = encodeURIComponent(`${currentUrl}/auth-callback`);
-        
-        // Create deep link to Slush app
-        const deepLink = `slush://signin?redirect_uri=${redirectUrl}`;
-        
-        console.log('Opening Slush deep link:', deepLink);
-        
-        // Open the deep link
-        window.location.href = deepLink;
-        
-        // Fallback: if deep link doesn't work, try opening in new window
-        setTimeout(() => {
-          window.open(deepLink, '_blank');
-        }, 1000);
-        
+        console.log('Attempting mobile Slush wallet connection');
+
+        // Try to connect specifically to Slush wallet
+        const slushWallet = wallets.find(wallet => wallet.name.toLowerCase().includes('slush'));
+
+        if (slushWallet) {
+          console.log('Found Slush wallet, connecting...');
+          await connect.mutateAsync({ wallet: slushWallet });
+        } else {
+          console.log('Slush wallet not found, trying general connect');
+          // Fallback to general connect which should handle mobile deep linking
+          await connect.mutateAsync();
+        }
+
       } catch (error) {
-        console.error('Failed to open Slush deep link:', error);
-        // Fallback to regular connection
-        handleWebConnect();
+        console.error('Mobile Slush wallet connection failed:', error);
+        const errorType = parseMobileError(error);
+        setMobileError(error);
+        setMobileErrorType(errorType);
+        setShowMobileError(true);
       }
     } else {
       // Desktop fallback
       handleWebConnect();
     }
-  };
-
-  // Sign personal message for authentication
+  };  // Sign personal message for authentication
   const { mutate: signPersonalMessage } = useSignPersonalMessage();
 
   // Mobile error modal state
