@@ -11,7 +11,6 @@ import {
   useWallets,
   useDisconnectWallet,
   useSignPersonalMessage,
-  ConnectButton,
 } from "@mysten/dapp-kit"; // Updated to use the new dapp-kit
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SuiClient } from "@mysten/sui/client";
@@ -394,22 +393,167 @@ function AppContent() {
                 Settings
               </Nav.Link>
               {isMobile ? (
-                <ConnectButton
-                  connectText="🔐 Connect Wallet"
-                  style={{
-                    backgroundColor: menuColor,
-                    borderColor: menuColor,
-                    textShadow: "0 0 6px #00ffff",
-                    fontSize: "16px", // Prevents zoom on iOS
-                    padding: "12px 20px", // Larger touch target
-                    borderRadius: "12px",
-                    transition: "background-color 0.4s",
-                    minHeight: "48px", // Touch-friendly height
-                    fontWeight: "bold",
-                    width: "100%", // Full width on mobile
-                    marginTop: "8px",
-                  }}
-                />
+                <div className="mobile-connect-container" style={{ width: '100%', padding: '0 16px' }}>
+                  <Button
+                    onClick={() => setShowWalletDropdown(!showWalletDropdown)}
+                    style={{
+                      background: `linear-gradient(135deg, ${menuColor}, ${menuColor}dd)`,
+                      border: `2px solid ${menuColor}`,
+                      color: '#00ffff',
+                      textShadow: '0 0 10px #00ffff, 0 0 20px #00ffff',
+                      fontSize: '18px',
+                      fontWeight: 'bold',
+                      padding: '16px 24px',
+                      borderRadius: '16px',
+                      width: '100%',
+                      minHeight: '56px',
+                      boxShadow: `0 0 25px ${menuColor}60, inset 0 0 25px ${menuColor}20`,
+                      transition: 'all 0.4s ease',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '12px',
+                      marginTop: '12px',
+                      fontFamily: '"Orbitron", sans-serif',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.boxShadow = `0 0 35px ${menuColor}80, inset 0 0 35px ${menuColor}30`;
+                      e.target.style.transform = 'translateY(-3px) scale(1.02)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.boxShadow = `0 0 25px ${menuColor}60, inset 0 0 25px ${menuColor}20`;
+                      e.target.style.transform = 'translateY(0) scale(1)';
+                    }}
+                  >
+                    <div style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      background: `linear-gradient(45deg, transparent 30%, ${menuColor}20 50%, transparent 70%)`,
+                      animation: 'shimmer 3s infinite',
+                      pointerEvents: 'none',
+                    }} />
+                    <span style={{
+                      fontSize: '20px',
+                      filter: 'drop-shadow(0 0 8px #00ffff)',
+                      zIndex: 1,
+                      position: 'relative',
+                    }}>
+                      🔐
+                    </span>
+                    <span style={{
+                      zIndex: 1,
+                      position: 'relative',
+                      letterSpacing: '1px',
+                    }}>
+                      CONNECT WALLET
+                    </span>
+                    <span style={{
+                      transition: 'transform 0.3s ease',
+                      transform: showWalletDropdown ? 'rotate(180deg)' : 'rotate(0deg)',
+                      zIndex: 1,
+                      position: 'relative',
+                      fontSize: '16px',
+                    }}>
+                      ▼
+                    </span>
+                  </Button>
+
+                  {showWalletDropdown && (
+                    <div
+                      style={{
+                        marginTop: '12px',
+                        background: 'linear-gradient(135deg, #0a001a, #1a0033, #330066)',
+                        border: `2px solid ${menuColor}`,
+                        borderRadius: '16px',
+                        boxShadow: `0 0 40px ${menuColor}50, inset 0 0 20px ${menuColor}10`,
+                        padding: '16px',
+                        animation: 'slideDown 0.3s ease-out',
+                        backdropFilter: 'blur(10px)',
+                      }}
+                    >
+                      <div style={{
+                        textAlign: 'center',
+                        marginBottom: '16px',
+                        color: '#00ffff',
+                        fontSize: '16px',
+                        fontWeight: 'bold',
+                        textShadow: '0 0 10px #00ffff',
+                        fontFamily: '"Orbitron", sans-serif',
+                      }}>
+                        Choose Your Wallet
+                      </div>
+                      {wallets.map((wallet, index) => (
+                        <div
+                          key={wallet.name}
+                          onClick={() => {
+                            console.log('Connecting to wallet:', wallet);
+                            connect.mutate({ wallet });
+                            setShowWalletDropdown(false);
+                          }}
+                          style={{
+                            padding: '14px 16px',
+                            marginBottom: '8px',
+                            background: `linear-gradient(135deg, ${menuColor}15, ${menuColor}25)`,
+                            border: `1px solid ${menuColor}40`,
+                            borderRadius: '12px',
+                            cursor: 'pointer',
+                            transition: 'all 0.3s ease',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                            minHeight: '50px',
+                            fontFamily: '"Orbitron", sans-serif',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.target.style.background = `linear-gradient(135deg, ${menuColor}30, ${menuColor}45)`;
+                            e.target.style.borderColor = menuColor;
+                            e.target.style.boxShadow = `0 0 20px ${menuColor}40`;
+                            e.target.style.transform = 'translateY(-2px)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.style.background = `linear-gradient(135deg, ${menuColor}15, ${menuColor}25)`;
+                            e.target.style.borderColor = `${menuColor}40`;
+                            e.target.style.boxShadow = 'none';
+                            e.target.style.transform = 'translateY(0)';
+                          }}
+                        >
+                          <div style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '8px',
+                            background: `linear-gradient(135deg, ${menuColor}, ${menuColor}aa)`,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '16px',
+                            boxShadow: `0 0 10px ${menuColor}40`,
+                          }}>
+                            {wallet.name === 'Sui Wallet' ? '🦊' :
+                             wallet.name === 'Martian Sui Wallet' ? '🪐' :
+                             wallet.name === 'Ethos Wallet' ? '🌟' :
+                             wallet.name === 'Surf Wallet' ? '🏄' :
+                             wallet.name === 'GlassWallet' ? '🥃' :
+                             wallet.name === 'Morphis Wallet' ? '🔄' :
+                             wallet.name === 'OneKey' ? '🔑' : '👛'}
+                          </div>
+                          <div style={{
+                            color: '#00ffff',
+                            fontSize: '16px',
+                            fontWeight: 'bold',
+                            textShadow: '0 0 6px #00ffff',
+                          }}>
+                            {wallet.name}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               ) : isConnected ? (
                 // Connected wallet display - modern card style
                 <div
