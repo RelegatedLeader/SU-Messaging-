@@ -735,11 +735,11 @@ function AppContent() {
           show={showWalletModal}
           onHide={() => setShowWalletModal(false)}
           centered
+          size="md"
           style={{
-            maxWidth: "90%",
-            [`@media (maxWidth: 767px)`]: {
-              width: "90%",
-            },
+            background: 'rgba(0, 0, 0, 0.9)',
+            backdropFilter: 'blur(10px)',
+            maxWidth: '90%',
           }}
         >
           <Modal.Header
@@ -751,7 +751,7 @@ function AppContent() {
             }}
           >
             <Modal.Title style={{ textShadow: "0 0 12px #00ffff" }}>
-              Wallet Required
+              🔗 Connect Wallet
             </Modal.Title>
           </Modal.Header>
           <Modal.Body
@@ -918,11 +918,128 @@ function AppContent() {
               </div>
             ) : (
               <div>
-                <p>🖥️ <strong>Desktop Connection</strong></p>
-                <p>
-                  Please connect your wallet to access the Dashboard and enjoy the full SU experience!
-                  We recommend using a browser wallet extension for the best experience.
+                <p style={{ marginBottom: '20px', fontSize: '1.1em' }}>
+                  Connect your Slush Wallet to start using SU Messaging:
                 </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {/* Slush Wallet Option Only */}
+                  <div
+                    onClick={() => {
+                      console.log('Connecting to Slush Wallet');
+                      handleWebConnect();
+                      setShowWalletModal(false);
+                    }}
+                    style={{
+                      padding: '20px',
+                      cursor: 'pointer',
+                      background: `linear-gradient(135deg, ${menuColor}10, ${menuColor}20)`,
+                      border: `3px solid ${menuColor}40`,
+                      borderRadius: '16px',
+                      transition: 'all 0.3s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '16px',
+                      fontFamily: 'Orbitron, sans-serif',
+                      fontSize: '1.2em',
+                      fontWeight: '500',
+                      position: 'relative',
+                      overflow: 'hidden',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.background = `linear-gradient(135deg, ${menuColor}20, ${menuColor}30)`;
+                      e.target.style.borderColor = menuColor;
+                      e.target.style.transform = 'translateY(-3px)';
+                      e.target.style.boxShadow = `0 0 25px ${menuColor}40`;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.background = `linear-gradient(135deg, ${menuColor}10, ${menuColor}20)`;
+                      e.target.style.borderColor = `${menuColor}40`;
+                      e.target.style.transform = 'translateY(0)';
+                      e.target.style.boxShadow = 'none';
+                    }}
+                  >
+                    {/* Shimmer effect */}
+                    <div style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      background: `linear-gradient(45deg, transparent 30%, ${menuColor}30 50%, transparent 70%)`,
+                      animation: 'shimmer 3s infinite',
+                      pointerEvents: 'none',
+                      zIndex: 1,
+                    }} />
+
+                    <div style={{
+                      width: '16px',
+                      height: '16px',
+                      borderRadius: '50%',
+                      backgroundColor: '#00ff00',
+                      boxShadow: '0 0 12px #00ff00',
+                      animation: 'pulse 2s infinite',
+                      zIndex: 2,
+                      position: 'relative',
+                    }} />
+
+                    <div style={{
+                      flex: 1,
+                      zIndex: 2,
+                      position: 'relative',
+                    }}>
+                      <div style={{
+                        color: '#00ffff',
+                        fontSize: '1.3em',
+                        fontWeight: 'bold',
+                        textShadow: '0 0 8px #00ffff',
+                        marginBottom: '4px',
+                      }}>
+                        Slush Wallet
+                      </div>
+                      <div style={{
+                        color: '#ffffff',
+                        fontSize: '0.9em',
+                        opacity: 0.9,
+                      }}>
+                        Secure blockchain authentication
+                      </div>
+                    </div>
+
+                    <div style={{
+                      color: menuColor,
+                      fontSize: '1.5em',
+                      textShadow: `0 0 8px ${menuColor}`,
+                      zIndex: 2,
+                      position: 'relative',
+                    }}>
+                      →
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{
+                  marginTop: '20px',
+                  padding: '16px',
+                  background: 'rgba(0, 255, 255, 0.1)',
+                  border: '2px solid #00ffff',
+                  borderRadius: '12px',
+                  fontSize: '0.9em',
+                }}>
+                  <div style={{
+                    color: '#00ffff',
+                    fontWeight: 'bold',
+                    marginBottom: '8px',
+                    textShadow: '0 0 6px #00ffff',
+                  }}>
+                    🔐 Secure Sign-In Process:
+                  </div>
+                  <div style={{ color: '#ffffff', lineHeight: '1.5' }}>
+                    1. Tap "Slush Wallet" to connect<br />
+                    2. Get redirected to Slush wallet app<br />
+                    3. Review and sign authentication message<br />
+                    4. Return to SU Messaging automatically
+                  </div>
+                </div>
               </div>
             )}
           </Modal.Body>
