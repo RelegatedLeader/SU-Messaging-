@@ -29,7 +29,6 @@ import Chat from "./Chat";
 import Settings from "./Settings";
 import {
   isMobileDevice,
-  shouldUseMobileFlow,
   parseMobileError,
   MOBILE_WALLETS
 } from "./utils/mobileWallet";
@@ -271,29 +270,15 @@ function AppContent() {
   };
 
   const handleWebConnect = async () => {
-    if (shouldUseMobileFlow()) {
-      try {
-        // Connect to wallet - dapp-kit will handle wallet selection and redirect to app on mobile
-        // The signing and navigation will happen in the connect onSuccess callback
-        await connect();
-      } catch (error) {
-        console.error("Mobile wallet connection failed:", error);
-        const errorType = parseMobileError(error);
-        setMobileError(error);
-        setMobileErrorType(errorType);
-        setShowMobileError(true);
-      }
-    } else {
-      // Desktop flow - connect (signing will happen in onSuccess callback)
-      try {
-        await connect();
-      } catch (error) {
-        console.error("Desktop wallet connection failed:", error);
-        const errorType = parseMobileError(error);
-        setMobileError(error);
-        setMobileErrorType(errorType);
-        setShowMobileError(true);
-      }
+    try {
+      // Connect to wallet - dapp-kit will handle Slush wallet detection and mobile redirects
+      await connect();
+    } catch (error) {
+      console.error("Wallet connection failed:", error);
+      const errorType = parseMobileError(error);
+      setMobileError(error);
+      setMobileErrorType(errorType);
+      setShowMobileError(true);
     }
   };
 
@@ -680,7 +665,7 @@ function AppContent() {
                   📱 <strong>Mobile Connection</strong>
                 </p>
                 <p style={{ marginBottom: "15px" }}>
-                  Connect your Sui Wallet (Slush) to sign in and start using SU Messaging.
+                  Connect your Slush Wallet to sign in and start using SU Messaging.
                   You'll be redirected to your wallet app to approve the connection securely.
                 </p>
                 <div style={{
@@ -693,8 +678,8 @@ function AppContent() {
                   <strong>🔐 Sign In Process:</strong>
                   <br />
                   <small style={{ color: "#ffffff" }}>
-                    1. Click "Connect Mobile Wallet"<br />
-                    2. Get redirected to Sui Wallet app<br />
+                    1. Click "Sign In with Slush Wallet"<br />
+                    2. Get redirected to Slush wallet app<br />
                     3. Review and sign the authentication message<br />
                     4. Return to SU Messaging automatically
                   </small>
