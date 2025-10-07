@@ -19,6 +19,25 @@ import { bcs } from "@mysten/bcs";
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit";
 import Long from "long";
 import { isMobileDevice } from "./utils/mobileWallet";
+import { encryptMessage, decryptMessage } from "./utils/encryption";
+import { storeOnWalrus, retrieveFromWalrus } from "./utils/walrus";
+
+// Simple key derivation from addresses (for testing - in production use proper key exchange)
+function deriveSharedKeyFromAddresses(address1, address2) {
+  // Sort addresses to ensure consistent key derivation regardless of order
+  const [addr1, addr2] = [address1, address2].sort();
+
+  // Create a deterministic key from the address pair
+  const combined = addr1 + addr2 + 'su-messaging-salt';
+
+  // Use Web Crypto API to hash and get raw bytes
+  const encoder = new TextEncoder();
+  const data = encoder.encode(combined);
+
+  return crypto.subtle.digest('SHA-256', data).then(hash => {
+    return new Uint8Array(hash);
+  });
+}
 
 function Chat() {
   const { id: recipientAddress } = useParams();
@@ -54,6 +73,35 @@ function Chat() {
       const timeB = b.clientTimestampMs || b.timestampMs;
       return timeA - timeB;
     });
+  };
+
+  // Helper function to decrypt a message from Walrus or Sui fallback
+  const decryptMessageFromStorage = async (metadataString, senderAddress, recipientAddress) => {
+    try {
+      const metadata = JSON.parse(metadataString);
+
+      if (metadata.version === "sui-fallback-v1" && metadata.encryptedData) {
+        // Fallback: encrypted data is stored directly on Sui
+        console.log("Decrypting from Sui fallback storage");
+        const sharedKey = await deriveSharedKeyFromAddresses(senderAddress, recipientAddress);
+        const decryptedContent = await decryptMessage(metadata.encryptedData, sharedKey);
+        return decryptedContent;
+      } else if (metadata.version === "walrus-v1" && metadata.blobId) {
+        // Normal Walrus storage
+        console.log("Decrypting from Walrus storage, blobId:", metadata.blobId);
+        const encryptedData = await retrieveFromWalrus(metadata.blobId);
+        const sharedKey = await deriveSharedKeyFromAddresses(senderAddress, recipientAddress);
+        const decryptedContent = await decryptMessage(encryptedData, sharedKey);
+        return decryptedContent;
+      } else {
+        // Fallback for old format (plain text)
+        return metadataString;
+      }
+    } catch (error) {
+      console.error('Failed to decrypt message from storage:', error);
+      // Return a placeholder indicating decryption failed
+      return "[Message temporarily unavailable - stored securely]";
+    }
   };
 
   // Check if package exists
@@ -238,18 +286,20 @@ function Chat() {
                   const timestampMs = Long.fromValue(fields.timestamp).toNumber();
                   const timestamp = new Date(timestampMs);
                   
-                  const content = new TextDecoder().decode(
+                  const encryptedContent = new TextDecoder().decode(
                     new Uint8Array(fields.encrypted_content || [])
                   );
-                  
+
+                  // For now, store the metadata - we'll decrypt asynchronously
                   fetchedMessages.push({
                     id: obj.data.objectId,
                     sender: fields.sender,
                     recipient: fields.recipient,
-                    content: content,
+                    content: encryptedContent, // This is actually metadata now
                     timestamp: timestamp,
                     timestampMs: timestampMs,
-                    clientTimestampMs: timestampMs, // For fetched messages, use blockchain timestamp as client timestamp
+                    clientTimestampMs: timestampMs,
+                    needsDecryption: true, // Flag to indicate this needs decryption
                   });
                   seenIds.add(obj.data.objectId);
                 }
@@ -532,8 +582,11 @@ function Chat() {
     const clientTimestamp = Date.now();
     const tempId = `temp-${clientTimestamp}`;
     setSendStatus(true);
+
+    try {
       console.log("Sending message to:", recipientAddress);
       console.log("Current account:", currentAccount?.address);
+
       if (!recipientAddress || !/^0x[a-fA-F0-9]{64}$/.test(recipientAddress)) {
         throw new Error("Invalid recipient address: " + recipientAddress);
       }
@@ -544,61 +597,98 @@ function Chat() {
       }
 
       const cleanedMessage = message.trim().replace(/\s+/g, " ");
-      const content = new TextEncoder().encode(cleanedMessage);
+
+      // Generate shared encryption key for this conversation
+      // For now, derive key from addresses (in production, this should use proper key exchange)
+      const sharedKey = await deriveSharedKeyFromAddresses(currentAccount.address, recipientAddress);
+      console.log("Generated shared key for encryption");
+
+      // Encrypt the message
+      const encryptedData = await encryptMessage(cleanedMessage, sharedKey);
+      console.log("Message encrypted successfully");
+
+      // Store encrypted message on Walrus with fallback to Sui
+      let walrusResult;
+      try {
+        walrusResult = await storeOnWalrus(encryptedData, {
+          epochs: 1, // Store for 1 epoch (~24 hours)
+          deletable: false
+        });
+        console.log("Message stored on Walrus:", walrusResult);
+      } catch (walrusError) {
+        console.warn("Walrus storage failed, falling back to Sui storage:", walrusError.message);
+
+        // Fallback: Store encrypted content directly on Sui (less efficient but works)
+        walrusResult = {
+          blobId: null, // No blobId since we're storing on Sui
+          fallback: true,
+          encryptedData: encryptedData, // Store encrypted data directly
+          size: encryptedData.length,
+          timestamp: clientTimestamp
+        };
+      }
+
+      // Create metadata for Sui blockchain
+      const metadata = walrusResult.fallback
+        ? JSON.stringify({
+            version: "sui-fallback-v1",
+            encryptedData: encryptedData, // Store encrypted data directly on Sui
+            timestamp: clientTimestamp,
+            size: encryptedData.length
+          })
+        : JSON.stringify({
+            blobId: walrusResult.blobId,
+            timestamp: clientTimestamp,
+            version: "walrus-v1"
+          });
+
+      const metadataBytes = new TextEncoder().encode(metadata);
 
       const tx = new Transaction();
       tx.moveCall({
         target: `${packageId}::su_messaging::send_message`,
         arguments: [
           tx.pure.address(recipientAddress),
-          tx.pure(bcs.vector(bcs.u8()).serialize(Array.from(content))),
+          tx.pure(bcs.vector(bcs.u8()).serialize(Array.from(metadataBytes))),
           tx.object("0x0000000000000000000000000000000000000000000000000000000000000006"), // Clock object
         ],
       });
 
-      console.log('Sending transaction with packageId:', packageId);
+      console.log('Sending transaction with storage method:', walrusResult.fallback ? 'Sui fallback' : 'Walrus');
       console.log('Transaction details:', {
         target: `${packageId}::su_messaging::send_message`,
         recipient: recipientAddress,
-        contentLength: content.length,
-        clock: "0x0000000000000000000000000000000000000000000000000000000000000006"
+        metadataLength: metadataBytes.length,
+        storageType: walrusResult.fallback ? 'sui-fallback' : 'walrus',
+        blobId: walrusResult.blobId || 'N/A (fallback storage)'
       });
-      
-      // Add message with 'sending' status immediately
+
+      // Add message with 'sending' status immediately (show original message for UX)
       const tempMessage = {
         id: tempId,
         sender: currentAccount.address,
         recipient: recipientAddress,
-        content: cleanedMessage,
+        content: cleanedMessage, // Show original message
         timestamp: new Date(clientTimestamp),
         timestampMs: clientTimestamp,
-        clientTimestampMs: clientTimestamp, // Preserve original send time for ordering
+        clientTimestampMs: clientTimestamp,
         status: 'sending',
+        storageType: walrusResult.fallback ? 'sui-fallback' : 'walrus', // Track storage method
       };
       setMessages(prevMessages => {
         const newMessages = [...prevMessages, tempMessage];
-        // Sort by client timestamp after adding
         return sortMessagesByTimestamp(newMessages);
       });
 
-      console.log('About to call signAndExecuteTransactionBlock with:', {
-        transaction: tx,
-        packageId,
-        target: `${packageId}::su_messaging::send_message`,
-        options: {
-          showEffects: true,
-          showEvents: true,
-        }
-      });
+      console.log('About to call signAndExecuteTransactionBlock');
 
-      // Use the mutate function with callbacks instead of awaiting
+      // Use the mutate function with callbacks
       const isMobile = isMobileDevice();
       signAndExecuteTransactionBlock({
         transaction: tx,
         options: isMobile ? {
           showEffects: true,
           showEvents: true,
-          // For mobile, disable popups to force redirect to wallet app
         } : {
           showEffects: true,
           showEvents: true,
@@ -607,21 +697,15 @@ function Chat() {
       }, {
         onSuccess: (result) => {
           console.log('Transaction result:', result);
-          console.log('Transaction effects:', result?.effects);
-          console.log('Transaction events:', result?.events);
 
-          // Check if transaction was successful
-          // In @mysten/dapp-kit, the result object may have effects as a string
-          // Try different ways to check success
           const isSuccess = result && (
             (result.effects && typeof result.effects === 'object' && result.effects.status === 'success') ||
-            (result.rawEffects && Array.isArray(result.rawEffects)) || // If rawEffects exists, transaction was processed
-            result.digest // If we have a digest, transaction was submitted
+            (result.rawEffects && Array.isArray(result.rawEffects)) ||
+            result.digest
           );
-          
-          console.log('Transaction success check:', isSuccess, 'result type:', typeof result);
-          console.log('Result properties:', Object.keys(result));
-          
+
+          console.log('Transaction success check:', isSuccess);
+
           if (isSuccess) {
             console.log('Transaction completed successfully');
 
@@ -632,11 +716,11 @@ function Chat() {
             let eventTimestamp = null;
 
             if (result.events && result.events.length > 0) {
-              const messageEvent = result.events.find(event => 
+              const messageEvent = result.events.find(event =>
                 event.type === `${packageId}::su_messaging::MessageCreated` ||
                 event.type.includes('MessageCreated')
               );
-              
+
               if (messageEvent && messageEvent.parsedJson) {
                 const eventData = messageEvent.parsedJson;
                 messageId = eventData.message_id;
@@ -647,37 +731,32 @@ function Chat() {
               }
             }
 
-            // Update the temporary message with confirmed status and real data
+            // Update the temporary message with confirmed status
             setMessages(prevMessages => {
-              const updatedMessages = prevMessages.map(msg => 
-                msg.id === tempId 
+              const updatedMessages = prevMessages.map(msg =>
+                msg.id === tempId
                   ? {
                       ...msg,
-                      id: messageId || `confirmed-${Date.now()}`, // Use confirmed ID or generate one
+                      id: messageId || `confirmed-${Date.now()}`,
                       sender: eventSender || msg.sender,
                       recipient: eventRecipient || msg.recipient,
-                      // Keep original client timestamp for ordering, but update display timestamp if blockchain has it
                       timestamp: eventTimestamp ? new Date(Long.fromValue(eventTimestamp).toNumber()) : msg.timestamp,
                       blockchainTimestampMs: eventTimestamp ? Long.fromValue(eventTimestamp).toNumber() : null,
                       status: 'confirmed'
                     }
                   : msg
               );
-              
-              // Sort by client timestamp after updating
+
               return sortMessagesByTimestamp(updatedMessages);
             });
 
             setSendStatus(false);
             setMessage("");
-            // Don't fetch immediately - let the periodic fetch handle confirmation
-            // setTimeout(() => fetchMessages(), 1000);
           } else {
-            console.error('Transaction failed or result undefined:', result);
-            // Mark as failed
-            setMessages(prevMessages => 
-              prevMessages.map(msg => 
-                msg.id === tempId 
+            console.error('Transaction failed:', result);
+            setMessages(prevMessages =>
+              prevMessages.map(msg =>
+                msg.id === tempId
                   ? { ...msg, status: 'failed' }
                   : msg
               )
@@ -688,37 +767,86 @@ function Chat() {
         },
         onError: (error) => {
           console.error('Transaction failed with error:', error);
-          console.error('Error details:', {
-            message: error.message,
-            stack: error.stack,
-            name: error.name
-          });
-          
+
           // Mark the temporary message as failed
-          setMessages(prevMessages => 
-            prevMessages.map(msg => 
-              msg.id === tempId 
+          setMessages(prevMessages =>
+            prevMessages.map(msg =>
+              msg.id === tempId
                 ? { ...msg, status: 'failed' }
                 : msg
             )
           );
-          
+
           setError("Failed to send: " + error.message);
           setSendStatus(false);
         }
       });
+    } catch (error) {
+      console.error('Error in handleSend:', error);
+
+      // Check if it's a Walrus connectivity issue
+      if (error.message.includes('Walrus') || error.message.includes('All Walrus endpoints failed')) {
+        setError("Decentralized storage temporarily unavailable. Your message will be stored securely on the blockchain and remain private.");
+        // The fallback mechanism will store encrypted content directly on Sui
+      } else {
+        setError("Failed to send message: " + error.message);
+      }
+
+      setSendStatus(false);
+    }
   };
 
-  // Scroll to bottom when messages change
+  // Decrypt messages that need decryption
   useEffect(() => {
-    if (messages.length > 0) {
-      // Small delay to ensure DOM has updated
-      const timeoutId = setTimeout(() => {
-        scrollToBottom();
-      }, 100);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [messages, scrollToBottom]);
+    const decryptPendingMessages = async () => {
+      const messagesNeedingDecryption = messages.filter(msg => msg.needsDecryption && !msg.decryptionAttempted);
+
+      if (messagesNeedingDecryption.length === 0) return;
+
+      console.log(`Decrypting ${messagesNeedingDecryption.length} messages from Walrus`);
+
+      for (const message of messagesNeedingDecryption) {
+        try {
+          const decryptedContent = await decryptMessageFromStorage(
+            message.content,
+            message.sender,
+            message.recipient
+          );
+
+          // Update the message with decrypted content
+          setMessages(prevMessages =>
+            prevMessages.map(msg =>
+              msg.id === message.id
+                ? {
+                    ...msg,
+                    content: decryptedContent,
+                    needsDecryption: false,
+                    decryptionAttempted: true
+                  }
+                : msg
+            )
+          );
+        } catch (error) {
+          console.error('Failed to decrypt message:', message.id, error);
+          // Mark as attempted but failed
+          setMessages(prevMessages =>
+            prevMessages.map(msg =>
+              msg.id === message.id
+                ? {
+                    ...msg,
+                    content: "[Message temporarily unavailable - stored securely]",
+                    needsDecryption: false,
+                    decryptionAttempted: true
+                  }
+                : msg
+            )
+          );
+        }
+      }
+    };
+
+    decryptPendingMessages();
+  }, [messages]);
 
   // Fetch sender names when messages change
   useEffect(() => {

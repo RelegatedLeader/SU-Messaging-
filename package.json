@@ -8,6 +8,7 @@
     "@mysten/bcs": "^1.6.1",
     "@mysten/dapp-kit": "^0.19.0",
     "@mysten/sui": "^1.30.1",
+    "@noble/hashes": "^1.8.0",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
@@ -28,6 +29,8 @@
     "react-router-dom": "^6.22.3",
     "react-scripts": "5.0.1",
     "style-loader": "^3.3.3",
+    "tweetnacl": "^1.0.3",
+    "tweetnacl-util": "^0.15.1",
     "typescript": "4.9.5",
     "web-vitals": "^2.1.4"
   },
