@@ -183,7 +183,7 @@ function AppContent() {
     onSuccess: () => {
       console.log('Wallet connected successfully');
 
-      // After successful connection, sign authentication message
+      // After successful connection, try to sign authentication message
       if (currentAccount) {
         const message = `Sign in to SU Messaging\n\nAddress: ${currentAccount.address}\nTimestamp: ${new Date().toISOString()}`;
 
@@ -195,11 +195,9 @@ function AppContent() {
             navigate('/dashboard');
           },
           onError: (error) => {
-            console.error('Authentication signature failed:', error);
-            const errorType = parseMobileError(error);
-            setMobileError(error);
-            setMobileErrorType(errorType);
-            setShowMobileError(true);
+            console.log('Authentication signature failed, but proceeding with login:', error);
+            // Don't show error modal for signature failures - proceed with login
+            navigate('/dashboard');
           }
         });
       } else {
@@ -216,13 +214,18 @@ function AppContent() {
                 navigate('/dashboard');
               },
               onError: (error) => {
-                console.error('Authentication signature failed:', error);
-                const errorType = parseMobileError(error);
-                setMobileError(error);
-                setMobileErrorType(errorType);
-                setShowMobileError(true);
+                console.log('Authentication signature failed, but proceeding with login:', error);
+                // Don't show error modal for signature failures - proceed with login
+                navigate('/dashboard');
               }
             });
+          } else {
+            // Only show error if we still don't have an account after timeout
+            console.error('No account found after connection attempt');
+            const errorType = parseMobileError(new Error('Connection timeout'));
+            setMobileError(new Error('Connection timeout'));
+            setMobileErrorType(errorType);
+            setShowMobileError(true);
           }
         }, 1000);
       }
