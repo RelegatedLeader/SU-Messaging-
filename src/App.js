@@ -27,10 +27,7 @@ import logo from "./img/su-logo.png";
 import Dashboard from "./Dashboard";
 import Chat from "./Chat";
 import Settings from "./Settings";
-import {
-  isMobileDevice,
-  parseMobileError,
-} from "./utils/mobileWallet";
+import { isMobileDevice, parseMobileError } from "./utils/mobileWallet";
 import MobileErrorModal from "./components/MobileErrorModal";
 
 // Auth callback component for handling return from Slush wallet
@@ -41,43 +38,48 @@ function AuthCallback() {
   const connect = useConnectWallet();
   const [menuColor] = useState("#ff00ff");
   const [retryCount, setRetryCount] = React.useState(0);
-  const [showManualConnect, setShowManualConnect] = React.useState(false);
+  const [showManualConnect, setShowManualConnect] = React.useState(false); //
 
   React.useEffect(() => {
     const handleAuthCallback = async () => {
       try {
-        console.log('Handling auth callback from Slush wallet');
+        console.log("Handling auth callback from Slush wallet");
 
         // Check if this is a deep link callback
-        const authPending = sessionStorage.getItem('authPending');
-        const authTimestamp = sessionStorage.getItem('authTimestamp');
+        const authPending = sessionStorage.getItem("authPending");
+        const authTimestamp = sessionStorage.getItem("authTimestamp");
 
         if (authPending && authTimestamp) {
           // Clear the session storage
-          sessionStorage.removeItem('authPending');
-          sessionStorage.removeItem('authTimestamp');
+          sessionStorage.removeItem("authPending");
+          sessionStorage.removeItem("authTimestamp");
 
           // Check if user is connected
           if (currentAccount) {
-            console.log('Wallet connected, proceeding with signature');
+            console.log("Wallet connected, proceeding with signature");
 
             // Sign authentication message to prove ownership
-            const message = `Sign in to SU Messaging\n\nAddress: ${currentAccount.address}\nTimestamp: ${new Date().toISOString()}`;
+            const message = `Sign in to SU Messaging\n\nAddress: ${
+              currentAccount.address
+            }\nTimestamp: ${new Date().toISOString()}`;
 
-            signPersonalMessage({
-              message: new TextEncoder().encode(message),
-            }, {
-              onSuccess: (result) => {
-                console.log('Authentication signature successful:', result);
-                navigate('/dashboard');
+            signPersonalMessage(
+              {
+                message: new TextEncoder().encode(message),
               },
-              onError: (error) => {
-                console.error('Authentication signature failed:', error);
-                navigate('/');
+              {
+                onSuccess: (result) => {
+                  console.log("Authentication signature successful:", result);
+                  navigate("/dashboard");
+                },
+                onError: (error) => {
+                  console.error("Authentication signature failed:", error);
+                  navigate("/");
+                },
               }
-            });
+            );
           } else {
-            console.log('Wallet not connected yet, waiting...');
+            console.log("Wallet not connected yet, waiting...");
 
             // If not connected after delay, show manual connect option
             setTimeout(() => {
@@ -89,15 +91,14 @@ function AuthCallback() {
         } else {
           // Regular callback handling
           if (currentAccount) {
-            navigate('/dashboard');
+            navigate("/dashboard");
           } else {
-            navigate('/');
+            navigate("/"); //main menu
           }
         }
-
       } catch (error) {
-        console.error('Auth callback failed:', error);
-        navigate('/');
+        console.error("Auth callback failed:", error);
+        navigate("/");
       }
     };
 
@@ -107,10 +108,10 @@ function AuthCallback() {
 
   const handleManualConnect = async () => {
     try {
-      setRetryCount(prev => prev + 1);
+      setRetryCount((prev) => prev + 1);
       await connect.mutateAsync();
     } catch (error) {
-      console.error('Manual connect failed:', error);
+      console.error("Manual connect failed:", error);
     }
   };
 
@@ -131,24 +132,28 @@ function AuthCallback() {
         Completing Authentication...
       </h2>
       <p style={{ textShadow: "0 0 6px #ff00ff" }}>
-        Please wait while we verify your wallet connection and complete the sign-in process.
+        Please wait while we verify your wallet connection and complete the
+        sign-in process.
       </p>
       <div style={{ margin: "20px 0" }}>
-        <div style={{
-          width: "40px",
-          height: "40px",
-          border: `3px solid ${menuColor}`,
-          borderTop: "3px solid transparent",
-          borderRadius: "50%",
-          animation: "spin 1s linear infinite",
-          margin: "0 auto",
-        }} />
+        <div
+          style={{
+            width: "40px",
+            height: "40px",
+            border: `3px solid ${menuColor}`,
+            borderTop: "3px solid transparent",
+            borderRadius: "50%",
+            animation: "spin 1s linear infinite",
+            margin: "0 auto",
+          }}
+        />
       </div>
 
       {showManualConnect && (
         <div style={{ marginTop: "20px" }}>
           <p style={{ fontSize: "0.9em", opacity: 0.8, marginBottom: "15px" }}>
-            If authentication didn't complete automatically, please connect manually:
+            If authentication didn't complete automatically, please connect
+            manually:
           </p>
           <Button
             onClick={handleManualConnect}
@@ -169,7 +174,8 @@ function AuthCallback() {
       )}
 
       <p style={{ fontSize: "0.9em", opacity: 0.8, marginTop: "15px" }}>
-        Make sure your Slush wallet is unlocked and you've approved the connection.
+        Make sure your Slush wallet is unlocked and you've approved the
+        connection.
       </p>
     </Container>
   );
@@ -182,49 +188,65 @@ function AppContent() {
   const [showConnectPrompt, setShowConnectPrompt] = useState(false);
   const connect = useConnectWallet({
     onSuccess: () => {
-      console.log('Wallet connected successfully');
+      console.log("Wallet connected successfully");
 
       // After successful connection, try to sign authentication message
       if (currentAccount) {
-        const message = `Sign in to SU Messaging\n\nAddress: ${currentAccount.address}\nTimestamp: ${new Date().toISOString()}`;
+        const message = `Sign in to SU Messaging\n\nAddress: ${
+          currentAccount.address
+        }\nTimestamp: ${new Date().toISOString()}`;
 
-        signPersonalMessage({
-          message: new TextEncoder().encode(message),
-        }, {
-          onSuccess: (result) => {
-            console.log('Authentication signature successful:', result);
-            navigate('/dashboard');
+        signPersonalMessage(
+          {
+            message: new TextEncoder().encode(message),
           },
-          onError: (error) => {
-            console.log('Authentication signature failed, but proceeding with login:', error);
-            // Don't show error modal for signature failures - proceed with login
-            navigate('/dashboard');
+          {
+            onSuccess: (result) => {
+              console.log("Authentication signature successful:", result);
+              navigate("/dashboard");
+            },
+            onError: (error) => {
+              console.log(
+                "Authentication signature failed, but proceeding with login:",
+                error
+              );
+              // Don't show error modal for signature failures - proceed with login
+              navigate("/dashboard");
+            },
           }
-        });
+        );
       } else {
         // If no account yet, wait a bit and try again (for mobile redirect timing)
         setTimeout(() => {
           if (currentAccount) {
-            const message = `Sign in to SU Messaging\n\nAddress: ${currentAccount.address}\nTimestamp: ${new Date().toISOString()}`;
+            const message = `Sign in to SU Messaging\n\nAddress: ${
+              currentAccount.address
+            }\nTimestamp: ${new Date().toISOString()}`;
 
-            signPersonalMessage({
-              message: new TextEncoder().encode(message),
-            }, {
-              onSuccess: (result) => {
-                console.log('Authentication signature successful:', result);
-                navigate('/dashboard');
+            signPersonalMessage(
+              {
+                message: new TextEncoder().encode(message),
               },
-              onError: (error) => {
-                console.log('Authentication signature failed, but proceeding with login:', error);
-                // Don't show error modal for signature failures - proceed with login
-                navigate('/dashboard');
+              {
+                onSuccess: (result) => {
+                  console.log("Authentication signature successful:", result);
+                  navigate("/dashboard");
+                },
+                onError: (error) => {
+                  console.log(
+                    "Authentication signature failed, but proceeding with login:",
+                    error
+                  );
+                  // Don't show error modal for signature failures - proceed with login
+                  navigate("/dashboard");
+                },
               }
-            });
+            );
           } else {
             // Only show error if we still don't have an account after timeout
-            console.error('No account found after connection attempt');
-            const errorType = parseMobileError(new Error('Connection timeout'));
-            setMobileError(new Error('Connection timeout'));
+            console.error("No account found after connection attempt");
+            const errorType = parseMobileError(new Error("Connection timeout"));
+            setMobileError(new Error("Connection timeout"));
             setMobileErrorType(errorType);
             setShowMobileError(true);
           }
@@ -232,12 +254,12 @@ function AppContent() {
       }
     },
     onError: (error) => {
-      console.error('Wallet connection failed:', error);
+      console.error("Wallet connection failed:", error);
       const errorType = parseMobileError(error);
       setMobileError(error);
       setMobileErrorType(errorType);
       setShowMobileError(true);
-    }
+    },
   });
   const disconnect = useDisconnectWallet();
   const wallets = useWallets();
@@ -276,7 +298,8 @@ function AppContent() {
             ? new TextDecoder().decode(
                 new Uint8Array(userObject.data.content.fields.display_name)
               )
-            : localStorage.getItem("currentDisplayName") || currentAccount.address.slice(0, 6) + "..."
+            : localStorage.getItem("currentDisplayName") ||
+                currentAccount.address.slice(0, 6) + "..."
         );
       }
     };
@@ -297,21 +320,24 @@ function AppContent() {
 
   // Navigate to dashboard when wallet connects (including auto-connect)
   useEffect(() => {
-    if (isConnected && currentAccount && location.pathname === '/') {
-      navigate('/dashboard');
+    if (isConnected && currentAccount && location.pathname === "/") {
+      navigate("/dashboard");
     }
   }, [isConnected, currentAccount, navigate, location.pathname]);
 
   // Close wallet dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (showWalletDropdown && !event.target.closest('.wallet-dropdown-container')) {
+      if (
+        showWalletDropdown &&
+        !event.target.closest(".wallet-dropdown-container")
+      ) {
         setShowWalletDropdown(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showWalletDropdown]);
 
   const handleDashboardClick = (e) => {
@@ -349,886 +375,1000 @@ function AppContent() {
           padding: "8px 15px",
         }}
       >
-          <Container>
-            <Navbar.Brand className="d-flex align-items-center gap-2">
-              <Link to="/">
-                <img
-                  src={logo}
-                  alt="SU Logo"
-                  style={{
-                    width: "40px",
-                    height: "40px",
-                    border: `2px solid ${menuColor}`,
-                    borderRadius: "8px",
-                  }}
-                />
-              </Link>
-              <Link to="/" className="text-white text-decoration-none">
-                <span
-                  style={{ textShadow: "0 0 12px #00ffff", fontSize: "1.1em" }}
-                >
-                  {userName || "SU"}
-                </span>
-              </Link>
-            </Navbar.Brand>
-            <Nav className="ms-auto d-flex align-items-center">
-              <Nav.Link
-                as={Link}
-                to="/settings"
-                className="text-white me-2"
+        <Container>
+          <Navbar.Brand className="d-flex align-items-center gap-2">
+            <Link to="/">
+              <img
+                src={logo}
+                alt="SU Logo"
                 style={{
-                  textShadow: "0 0 6px #00ffff",
-                  transition: "color 0.4s",
-                  color: menuColor,
-                  fontSize: "1em",
+                  width: "40px",
+                  height: "40px",
+                  border: `2px solid ${menuColor}`,
+                  borderRadius: "8px",
                 }}
-                onMouseEnter={(e) => (e.target.style.color = "#00ffff")}
-                onMouseLeave={(e) => (e.target.style.color = menuColor)}
+              />
+            </Link>
+            <Link to="/" className="text-white text-decoration-none">
+              <span
+                style={{ textShadow: "0 0 12px #00ffff", fontSize: "1.1em" }}
               >
-                Settings
-              </Nav.Link>
-              {isMobile ? (
-                isConnected ? (
-                  // Mobile Connected State
-                  <div className="mobile-connect-container" style={{ width: '100%', padding: '0 16px' }}>
+                {userName || "SU"}
+              </span>
+            </Link>
+          </Navbar.Brand>
+          <Nav className="ms-auto d-flex align-items-center">
+            <Nav.Link
+              as={Link}
+              to="/settings"
+              className="text-white me-2"
+              style={{
+                textShadow: "0 0 6px #00ffff",
+                transition: "color 0.4s",
+                color: menuColor,
+                fontSize: "1em",
+              }}
+              onMouseEnter={(e) => (e.target.style.color = "#00ffff")}
+              onMouseLeave={(e) => (e.target.style.color = menuColor)}
+            >
+              Settings
+            </Nav.Link>
+            {isMobile ? (
+              isConnected ? (
+                // Mobile Connected State
+                <div
+                  className="mobile-connect-container"
+                  style={{ width: "100%", padding: "0 16px" }}
+                >
+                  <div
+                    style={{
+                      background: `linear-gradient(135deg, ${menuColor}20, ${menuColor}40)`,
+                      border: `2px solid ${menuColor}`,
+                      borderRadius: "16px",
+                      padding: "12px 16px",
+                      boxShadow: `0 0 25px ${menuColor}60, inset 0 0 25px ${menuColor}20`,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      minHeight: "56px",
+                      marginTop: "12px",
+                      fontFamily: '"Orbitron", sans-serif',
+                    }}
+                  >
                     <div
                       style={{
-                        background: `linear-gradient(135deg, ${menuColor}20, ${menuColor}40)`,
-                        border: `2px solid ${menuColor}`,
-                        borderRadius: '16px',
-                        padding: '12px 16px',
-                        boxShadow: `0 0 25px ${menuColor}60, inset 0 0 25px ${menuColor}20`,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        minHeight: '56px',
-                        marginTop: '12px',
-                        fontFamily: '"Orbitron", sans-serif',
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "12px",
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div style={{
-                          width: '12px',
-                          height: '12px',
-                          borderRadius: '50%',
-                          backgroundColor: '#00ff00',
-                          boxShadow: '0 0 8px #00ff00',
-                          animation: 'pulse 2s infinite',
-                        }} />
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                          <span style={{
-                            color: '#00ffff',
-                            fontSize: '14px',
-                            fontWeight: 'bold',
-                            textShadow: '0 0 6px #00ffff',
-                          }}>
-                            {currentWallet?.name || 'Connected'}
-                          </span>
-                          <span style={{
-                            color: '#00ffff',
-                            fontSize: '12px',
-                            opacity: 0.8,
-                            fontFamily: 'monospace',
-                          }}>
-                            {currentAccount?.address?.slice(0, 6)}...{currentAccount?.address?.slice(-4)}
-                          </span>
-                        </div>
-                      </div>
-                      <Button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          disconnect.mutate();
-                        }}
+                      <div
                         style={{
-                          backgroundColor: 'transparent',
-                          border: `1px solid ${menuColor}`,
-                          color: menuColor,
-                          fontSize: '12px',
-                          padding: '6px 12px',
-                          borderRadius: '8px',
-                          transition: 'all 0.2s ease',
-                          fontFamily: '"Orbitron", sans-serif',
+                          width: "12px",
+                          height: "12px",
+                          borderRadius: "50%",
+                          backgroundColor: "#00ff00",
+                          boxShadow: "0 0 8px #00ff00",
+                          animation: "pulse 2s infinite",
                         }}
-                        onMouseEnter={(e) => {
-                          e.target.style.backgroundColor = menuColor;
-                          e.target.style.color = '#1a0033';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.target.style.backgroundColor = 'transparent';
-                          e.target.style.color = menuColor;
+                      />
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "flex-start",
                         }}
                       >
-                        ✕ LOGOUT
-                      </Button>
+                        <span
+                          style={{
+                            color: "#00ffff",
+                            fontSize: "14px",
+                            fontWeight: "bold",
+                            textShadow: "0 0 6px #00ffff",
+                          }}
+                        >
+                          {currentWallet?.name || "Connected"}
+                        </span>
+                        <span
+                          style={{
+                            color: "#00ffff",
+                            fontSize: "12px",
+                            opacity: 0.8,
+                            fontFamily: "monospace",
+                          }}
+                        >
+                          {currentAccount?.address?.slice(0, 6)}...
+                          {currentAccount?.address?.slice(-4)}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  // Mobile Disconnected State - Custom Slush Wallet Button
-                  <div className="mobile-connect-container" style={{ width: '100%', padding: '0 16px' }}>
-                    <div
-                      className="cyberpunk-connect-wrapper"
-                      style={{
-                        position: 'relative',
-                        marginTop: '12px',
-                        fontFamily: '"Orbitron", sans-serif',
-                        background: `linear-gradient(135deg, ${menuColor}, ${menuColor}dd)`,
-                        border: `2px solid ${menuColor}`,
-                        borderRadius: '16px',
-                        boxShadow: `0 0 25px ${menuColor}60, inset 0 0 25px ${menuColor}20`,
-                        overflow: 'hidden',
-                        cursor: 'pointer',
+                    <Button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        disconnect.mutate();
                       }}
-                      onClick={() => {
-                        const slushWallet = wallets.find(wallet => wallet.name.toLowerCase().includes('slush'));
-                        if (slushWallet) {
-                          console.log('Connecting to Slush Wallet');
-                          connect.mutate({ wallet: slushWallet });
-                        } else {
-                          console.log('Slush Wallet not found, using default connect');
-                          connect.mutate();
-                        }
+                      style={{
+                        backgroundColor: "transparent",
+                        border: `1px solid ${menuColor}`,
+                        color: menuColor,
+                        fontSize: "12px",
+                        padding: "6px 12px",
+                        borderRadius: "8px",
+                        transition: "all 0.2s ease",
+                        fontFamily: '"Orbitron", sans-serif',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.style.backgroundColor = menuColor;
+                        e.target.style.color = "#1a0033";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.backgroundColor = "transparent";
+                        e.target.style.color = menuColor;
                       }}
                     >
-                      <div style={{
-                        position: 'absolute',
+                      ✕ LOGOUT
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                // Mobile Disconnected State - Custom Slush Wallet Button
+                <div
+                  className="mobile-connect-container"
+                  style={{ width: "100%", padding: "0 16px" }}
+                >
+                  <div
+                    className="cyberpunk-connect-wrapper"
+                    style={{
+                      position: "relative",
+                      marginTop: "12px",
+                      fontFamily: '"Orbitron", sans-serif',
+                      background: `linear-gradient(135deg, ${menuColor}, ${menuColor}dd)`,
+                      border: `2px solid ${menuColor}`,
+                      borderRadius: "16px",
+                      boxShadow: `0 0 25px ${menuColor}60, inset 0 0 25px ${menuColor}20`,
+                      overflow: "hidden",
+                      cursor: "pointer",
+                    }}
+                    onClick={() => {
+                      const slushWallet = wallets.find((wallet) =>
+                        wallet.name.toLowerCase().includes("slush")
+                      );
+                      if (slushWallet) {
+                        console.log("Connecting to Slush Wallet");
+                        connect.mutate({ wallet: slushWallet });
+                      } else {
+                        console.log(
+                          "Slush Wallet not found, using default connect"
+                        );
+                        connect.mutate();
+                      }
+                    }}
+                  >
+                    <div
+                      style={{
+                        position: "absolute",
                         top: 0,
                         left: 0,
                         right: 0,
                         bottom: 0,
                         background: `linear-gradient(45deg, transparent 30%, ${menuColor}20 50%, transparent 70%)`,
-                        animation: 'shimmer 3s infinite',
-                        pointerEvents: 'none',
+                        animation: "shimmer 3s infinite",
+                        pointerEvents: "none",
                         zIndex: 1,
-                      }} />
-                      <div
-                        className="cyberpunk-connect-button"
-                        style={{
-                          width: '100%',
-                          minHeight: '56px',
-                          background: 'transparent',
-                          border: 'none',
-                          color: '#00ffff',
-                          textShadow: '0 0 10px #00ffff, 0 0 20px #00ffff',
-                          fontSize: '18px',
-                          fontWeight: 'bold',
-                          fontFamily: '"Orbitron", sans-serif',
-                          position: 'relative',
-                          zIndex: 2,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '12px',
-                          padding: '16px 24px',
-                        }}
-                      >
-                        <span style={{ fontSize: '20px' }}>🔗</span>
-                        Connect Wallet
-                      </div>
-                    </div>
-                  </div>
-                )
-              ) : isConnected ? (
-                // Connected wallet display - modern card style
-                <div
-                  className="wallet-dropdown-container"
-                  style={{
-                    position: 'relative',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    background: `linear-gradient(135deg, ${menuColor}20, ${menuColor}40)`,
-                    border: `2px solid ${menuColor}`,
-                    borderRadius: '12px',
-                    padding: '8px 16px',
-                    boxShadow: `0 0 20px ${menuColor}40`,
-                    transition: 'all 0.3s ease',
-                    cursor: 'pointer',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.boxShadow = `0 0 30px ${menuColor}60`;
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.boxShadow = `0 0 20px ${menuColor}40`;
-                    e.currentTarget.style.transform = 'translateY(0)';
-                  }}
-                >
-                  <div style={{
-                    width: '12px',
-                    height: '12px',
-                    borderRadius: '50%',
-                    backgroundColor: '#00ff00',
-                    boxShadow: '0 0 8px #00ff00',
-                    animation: 'pulse 2s infinite',
-                  }} />
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                    <span style={{
-                      color: '#00ffff',
-                      fontSize: '0.9em',
-                      fontWeight: 'bold',
-                      textShadow: '0 0 6px #00ffff',
-                    }}>
-                      {currentWallet?.name || 'Connected'}
-                    </span>
-                    <span style={{
-                      color: '#00ffff',
-                      fontSize: '0.7em',
-                      opacity: 0.8,
-                      fontFamily: 'monospace',
-                    }}>
-                      {currentAccount?.address?.slice(0, 8)}...{currentAccount?.address?.slice(-6)}
-                    </span>
-                  </div>
-                  <Button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      disconnect.mutate();
-                    }}
-                    style={{
-                      backgroundColor: 'transparent',
-                      border: `1px solid ${menuColor}`,
-                      color: menuColor,
-                      fontSize: '0.7em',
-                      padding: '4px 8px',
-                      borderRadius: '6px',
-                      transition: 'all 0.2s ease',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.target.style.backgroundColor = menuColor;
-                      e.target.style.color = '#1a0033';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.backgroundColor = 'transparent';
-                      e.target.style.color = menuColor;
-                    }}
-                  >
-                    ✕
-                  </Button>
-                </div>
-              ) : (
-                // Desktop Disconnected State - Custom Slush Wallet Button
-                <Button
-                  onClick={() => {
-                    const slushWallet = wallets.find(wallet => wallet.name.toLowerCase().includes('slush'));
-                    if (slushWallet) {
-                      console.log('Connecting to Slush Wallet');
-                      connect.mutate({ wallet: slushWallet });
-                    } else {
-                      console.log('Slush Wallet not found, using default connect');
-                      connect.mutate();
-                    }
-                  }}
-                  style={{
-                    backgroundColor: menuColor,
-                    border: `2px solid ${menuColor}`,
-                    color: '#00ffff',
-                    textShadow: '0 0 8px #00ffff',
-                    fontSize: 'clamp(14px, 2vw, 16px)',
-                    padding: '12px 24px',
-                    borderRadius: '12px',
-                    fontWeight: 'bold',
-                    boxShadow: `0 0 20px ${menuColor}40`,
-                    transition: 'all 0.3s ease',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    minHeight: '48px',
-                    fontFamily: '"Orbitron", sans-serif',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.boxShadow = `0 0 30px ${menuColor}60`;
-                    e.target.style.transform = 'translateY(-2px)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.boxShadow = `0 0 20px ${menuColor}40`;
-                    e.target.style.transform = 'translateY(0)';
-                  }}
-                >
-                  <span>🔗</span>
-                  Connect Wallet
-                </Button>
-              )}
-            </Nav>
-          </Container>
-        </Navbar>
-        <Routes>
-          <Route
-            path="/"
-            element={
-              isConnected ? <Navigate to="/dashboard" replace /> : (
-                <Container
-                  className="mt-4 text-center"
-                  style={{
-                    background: "linear-gradient(135deg, #1a0033, #440088)",
-                    border: `4px solid ${menuColor}`,
-                    borderRadius: "12px",
-                    boxShadow: "0 0 20px #00ffff",
-                    color: "#00ffff",
-                    fontFamily: "Orbitron, sans-serif",
-                    padding: "20px",
-                  }}
-                >
-                  <h1
-                    className="d-flex align-items-center justify-content-center gap-2"
-                    style={{
-                      textShadow: "0 0 15px #00ffff",
-                      fontSize: "2em",
-                    }}
-                  >
-                    Welcome to {userName || "SU"}
-                    <img
-                      src={logo}
-                      alt="SU Logo"
-                      style={{
-                        width: "50px",
-                        height: "50px",
-                        border: `2px solid ${menuColor}`,
-                        borderRadius: "8px",
                       }}
                     />
-                  </h1>
-                  <p
-                    style={{
-                      textShadow: "0 0 6px #ff00ff",
-                      fontSize: "1.1em",
-                    }}
-                  >
-                    A decentralized messaging app powered by the SUI blockchain.
-                  </p>
-                  <div className="mt-4">
-                    <Button
-                      as={Link}
-                      to="/dashboard"
-                      variant="outline-primary"
-                      className="mx-2"
+                    <div
+                      className="cyberpunk-connect-button"
                       style={{
-                        background: `linear-gradient(135deg, ${menuColor}20, ${menuColor}40)`,
-                        border: `2px solid ${menuColor}`,
-                        color: '#00ffff',
-                        textShadow: '0 0 8px #00ffff',
-                        padding: '12px 24px',
-                        fontSize: '1.1em',
-                        borderRadius: '12px',
-                        fontWeight: 'bold',
-                        boxShadow: `0 0 15px ${menuColor}40`,
-                        transition: 'all 0.3s ease',
+                        width: "100%",
+                        minHeight: "56px",
+                        background: "transparent",
+                        border: "none",
+                        color: "#00ffff",
+                        textShadow: "0 0 10px #00ffff, 0 0 20px #00ffff",
+                        fontSize: "18px",
+                        fontWeight: "bold",
                         fontFamily: '"Orbitron", sans-serif',
-                        minHeight: '48px',
-                      }}
-                      onClick={handleDashboardClick}
-                      onMouseEnter={(e) => {
-                        e.target.style.boxShadow = `0 0 25px ${menuColor}60`;
-                        e.target.style.transform = 'translateY(-2px)';
-                        e.target.style.background = `linear-gradient(135deg, ${menuColor}30, ${menuColor}50)`;
-                      }}
-                      onMouseLeave={(e) => {
-                        e.target.style.boxShadow = `0 0 15px ${menuColor}40`;
-                        e.target.style.transform = 'translateY(0)';
-                        e.target.style.background = `linear-gradient(135deg, ${menuColor}20, ${menuColor}40)`;
+                        position: "relative",
+                        zIndex: 2,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "12px",
+                        padding: "16px 24px",
                       }}
                     >
-                      🚀 Go to Dashboard
-                    </Button>
+                      <span style={{ fontSize: "20px" }}>🔗</span>
+                      Connect Wallet
+                    </div>
                   </div>
-                </Container>
-              )
-            }
-          />
-          <Route
-            path="/dashboard"
-            element={isConnected ? <Dashboard /> : <Navigate to="/" replace />}
-          />
-          <Route path="/chat/:id" element={<Chat />} />
-          <Route
-            path="/settings"
-            element={<Settings setMenuColor={setMenuColor} />}
-          />
-          <Route
-            path="/auth-callback"
-            element={<AuthCallback />}
-          />
-        </Routes>
-
-        <Modal
-          show={showWalletModal}
-          onHide={() => setShowWalletModal(false)}
-          centered
-          size="md"
-          style={{
-            background: 'rgba(0, 0, 0, 0.9)',
-            backdropFilter: 'blur(10px)',
-            maxWidth: '90%',
-          }}
-        >
-          <Modal.Header
-            style={{
-              background: "linear-gradient(135deg, #1a0033, #440088)",
-              borderBottom: `2px solid ${menuColor}`,
-              color: "#00ffff",
-              fontFamily: "Orbitron, sans-serif",
-            }}
-          >
-            <Modal.Title style={{ textShadow: "0 0 12px #00ffff" }}>
-              🔗 Connect Wallet
-            </Modal.Title>
-          </Modal.Header>
-          <Modal.Body
-            style={{
-              background: "#1a0033",
-              color: "#00ffff",
-              textShadow: "0 0 4px #ff00ff",
-              fontSize: "1em",
-              padding: "25px",
-            }}
-          >
-            {isMobile ? (
-              <div>
-                <div style={{
-                  textAlign: 'center',
-                  marginBottom: '25px'
-                }}>
-                  <div style={{
-                    fontSize: '3em',
-                    marginBottom: '10px',
-                    textShadow: '0 0 20px #00ffff',
-                    animation: 'pulse 2s infinite'
-                  }}>
-                    �
-                  </div>
-                  <h4 style={{
-                    color: '#00ffff',
-                    textShadow: '0 0 12px #00ffff',
-                    marginBottom: '15px',
-                    fontFamily: 'Orbitron, sans-serif'
-                  }}>
-                    Connect with Slush Wallet
-                  </h4>
-                  <p style={{
-                    color: '#ffffff',
-                    marginBottom: '20px',
-                    fontSize: '1em'
-                  }}>
-                    Sign in securely with your Slush Wallet to access SU Messaging
-                  </p>
                 </div>
-
-                {/* Cyberpunk-styled Slush Wallet Button */}
+              )
+            ) : isConnected ? (
+              // Connected wallet display - modern card style
+              <div
+                className="wallet-dropdown-container"
+                style={{
+                  position: "relative",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                  background: `linear-gradient(135deg, ${menuColor}20, ${menuColor}40)`,
+                  border: `2px solid ${menuColor}`,
+                  borderRadius: "12px",
+                  padding: "8px 16px",
+                  boxShadow: `0 0 20px ${menuColor}40`,
+                  transition: "all 0.3s ease",
+                  cursor: "pointer",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.boxShadow = `0 0 30px ${menuColor}60`;
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow = `0 0 20px ${menuColor}40`;
+                  e.currentTarget.style.transform = "translateY(0)";
+                }}
+              >
                 <div
-                  onClick={handleWebConnect}
                   style={{
-                    background: `linear-gradient(135deg, ${menuColor}20, ${menuColor}40)`,
-                    border: `3px solid ${menuColor}`,
-                    borderRadius: '16px',
-                    padding: '20px',
-                    marginBottom: '20px',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '16px',
-                    fontFamily: 'Orbitron, sans-serif',
-                    boxShadow: `0 0 25px ${menuColor}40, inset 0 0 25px ${menuColor}10`,
-                    position: 'relative',
-                    overflow: 'hidden',
+                    width: "12px",
+                    height: "12px",
+                    borderRadius: "50%",
+                    backgroundColor: "#00ff00",
+                    boxShadow: "0 0 8px #00ff00",
+                    animation: "pulse 2s infinite",
                   }}
-                  onMouseEnter={(e) => {
-                    e.target.style.boxShadow = `0 0 35px ${menuColor}60, inset 0 0 35px ${menuColor}20`;
-                    e.target.style.transform = 'translateY(-3px)';
-                    e.target.style.borderColor = '#00ffff';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.boxShadow = `0 0 25px ${menuColor}40, inset 0 0 25px ${menuColor}10`;
-                    e.target.style.transform = 'translateY(0)';
-                    e.target.style.borderColor = menuColor;
+                />
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "flex-start",
                   }}
                 >
-                  {/* Shimmer effect */}
-                  <div style={{
-                    position: 'absolute',
+                  <span
+                    style={{
+                      color: "#00ffff",
+                      fontSize: "0.9em",
+                      fontWeight: "bold",
+                      textShadow: "0 0 6px #00ffff",
+                    }}
+                  >
+                    {currentWallet?.name || "Connected"}
+                  </span>
+                  <span
+                    style={{
+                      color: "#00ffff",
+                      fontSize: "0.7em",
+                      opacity: 0.8,
+                      fontFamily: "monospace",
+                    }}
+                  >
+                    {currentAccount?.address?.slice(0, 8)}...
+                    {currentAccount?.address?.slice(-6)}
+                  </span>
+                </div>
+                <Button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    disconnect.mutate();
+                  }}
+                  style={{
+                    backgroundColor: "transparent",
+                    border: `1px solid ${menuColor}`,
+                    color: menuColor,
+                    fontSize: "0.7em",
+                    padding: "4px 8px",
+                    borderRadius: "6px",
+                    transition: "all 0.2s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = menuColor;
+                    e.target.style.color = "#1a0033";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = "transparent";
+                    e.target.style.color = menuColor;
+                  }}
+                >
+                  ✕
+                </Button>
+              </div>
+            ) : (
+              // Desktop Disconnected State - Custom Slush Wallet Button
+              <Button
+                onClick={() => {
+                  const slushWallet = wallets.find((wallet) =>
+                    wallet.name.toLowerCase().includes("slush")
+                  );
+                  if (slushWallet) {
+                    console.log("Connecting to Slush Wallet");
+                    connect.mutate({ wallet: slushWallet });
+                  } else {
+                    console.log(
+                      "Slush Wallet not found, using default connect"
+                    );
+                    connect.mutate();
+                  }
+                }}
+                style={{
+                  backgroundColor: menuColor,
+                  border: `2px solid ${menuColor}`,
+                  color: "#00ffff",
+                  textShadow: "0 0 8px #00ffff",
+                  fontSize: "clamp(14px, 2vw, 16px)",
+                  padding: "12px 24px",
+                  borderRadius: "12px",
+                  fontWeight: "bold",
+                  boxShadow: `0 0 20px ${menuColor}40`,
+                  transition: "all 0.3s ease",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  minHeight: "48px",
+                  fontFamily: '"Orbitron", sans-serif',
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.boxShadow = `0 0 30px ${menuColor}60`;
+                  e.target.style.transform = "translateY(-2px)";
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.boxShadow = `0 0 20px ${menuColor}40`;
+                  e.target.style.transform = "translateY(0)";
+                }}
+              >
+                <span>🔗</span>
+                Connect Wallet
+              </Button>
+            )}
+          </Nav>
+        </Container>
+      </Navbar>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            isConnected ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <Container
+                className="mt-4 text-center"
+                style={{
+                  background: "linear-gradient(135deg, #1a0033, #440088)",
+                  border: `4px solid ${menuColor}`,
+                  borderRadius: "12px",
+                  boxShadow: "0 0 20px #00ffff",
+                  color: "#00ffff",
+                  fontFamily: "Orbitron, sans-serif",
+                  padding: "20px",
+                }}
+              >
+                <h1
+                  className="d-flex align-items-center justify-content-center gap-2"
+                  style={{
+                    textShadow: "0 0 15px #00ffff",
+                    fontSize: "2em",
+                  }}
+                >
+                  Welcome to {userName || "SU"}
+                  <img
+                    src={logo}
+                    alt="SU Logo"
+                    style={{
+                      width: "50px",
+                      height: "50px",
+                      border: `2px solid ${menuColor}`,
+                      borderRadius: "8px",
+                    }}
+                  />
+                </h1>
+                <p
+                  style={{
+                    textShadow: "0 0 6px #ff00ff",
+                    fontSize: "1.1em",
+                  }}
+                >
+                  A decentralized messaging app powered by the SUI blockchain.
+                </p>
+                <div className="mt-4">
+                  <Button
+                    as={Link}
+                    to="/dashboard"
+                    variant="outline-primary"
+                    className="mx-2"
+                    style={{
+                      background: `linear-gradient(135deg, ${menuColor}20, ${menuColor}40)`,
+                      border: `2px solid ${menuColor}`,
+                      color: "#00ffff",
+                      textShadow: "0 0 8px #00ffff",
+                      padding: "12px 24px",
+                      fontSize: "1.1em",
+                      borderRadius: "12px",
+                      fontWeight: "bold",
+                      boxShadow: `0 0 15px ${menuColor}40`,
+                      transition: "all 0.3s ease",
+                      fontFamily: '"Orbitron", sans-serif',
+                      minHeight: "48px",
+                    }}
+                    onClick={handleDashboardClick}
+                    onMouseEnter={(e) => {
+                      e.target.style.boxShadow = `0 0 25px ${menuColor}60`;
+                      e.target.style.transform = "translateY(-2px)";
+                      e.target.style.background = `linear-gradient(135deg, ${menuColor}30, ${menuColor}50)`;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.boxShadow = `0 0 15px ${menuColor}40`;
+                      e.target.style.transform = "translateY(0)";
+                      e.target.style.background = `linear-gradient(135deg, ${menuColor}20, ${menuColor}40)`;
+                    }}
+                  >
+                    🚀 Go to Dashboard
+                  </Button>
+                </div>
+              </Container>
+            )
+          }
+        />
+        <Route
+          path="/dashboard"
+          element={isConnected ? <Dashboard /> : <Navigate to="/" replace />}
+        />
+        <Route path="/chat/:id" element={<Chat />} />
+        <Route
+          path="/settings"
+          element={<Settings setMenuColor={setMenuColor} />}
+        />
+        <Route path="/auth-callback" element={<AuthCallback />} />
+      </Routes>
+
+      <Modal
+        show={showWalletModal}
+        onHide={() => setShowWalletModal(false)}
+        centered
+        size="md"
+        style={{
+          background: "rgba(0, 0, 0, 0.9)",
+          backdropFilter: "blur(10px)",
+          maxWidth: "90%",
+        }}
+      >
+        <Modal.Header
+          style={{
+            background: "linear-gradient(135deg, #1a0033, #440088)",
+            borderBottom: `2px solid ${menuColor}`,
+            color: "#00ffff",
+            fontFamily: "Orbitron, sans-serif",
+          }}
+        >
+          <Modal.Title style={{ textShadow: "0 0 12px #00ffff" }}>
+            🔗 Connect Wallet
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body
+          style={{
+            background: "#1a0033",
+            color: "#00ffff",
+            textShadow: "0 0 4px #ff00ff",
+            fontSize: "1em",
+            padding: "25px",
+          }}
+        >
+          {isMobile ? (
+            <div>
+              <div
+                style={{
+                  textAlign: "center",
+                  marginBottom: "25px",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: "3em",
+                    marginBottom: "10px",
+                    textShadow: "0 0 20px #00ffff",
+                    animation: "pulse 2s infinite",
+                  }}
+                >
+                  �
+                </div>
+                <h4
+                  style={{
+                    color: "#00ffff",
+                    textShadow: "0 0 12px #00ffff",
+                    marginBottom: "15px",
+                    fontFamily: "Orbitron, sans-serif",
+                  }}
+                >
+                  Connect with Slush Wallet
+                </h4>
+                <p
+                  style={{
+                    color: "#ffffff",
+                    marginBottom: "20px",
+                    fontSize: "1em",
+                  }}
+                >
+                  Sign in securely with your Slush Wallet to access SU Messaging
+                </p>
+              </div>
+
+              {/* Cyberpunk-styled Slush Wallet Button */}
+              <div
+                onClick={handleWebConnect}
+                style={{
+                  background: `linear-gradient(135deg, ${menuColor}20, ${menuColor}40)`,
+                  border: `3px solid ${menuColor}`,
+                  borderRadius: "16px",
+                  padding: "20px",
+                  marginBottom: "20px",
+                  cursor: "pointer",
+                  transition: "all 0.3s ease",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "16px",
+                  fontFamily: "Orbitron, sans-serif",
+                  boxShadow: `0 0 25px ${menuColor}40, inset 0 0 25px ${menuColor}10`,
+                  position: "relative",
+                  overflow: "hidden",
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.boxShadow = `0 0 35px ${menuColor}60, inset 0 0 35px ${menuColor}20`;
+                  e.target.style.transform = "translateY(-3px)";
+                  e.target.style.borderColor = "#00ffff";
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.boxShadow = `0 0 25px ${menuColor}40, inset 0 0 25px ${menuColor}10`;
+                  e.target.style.transform = "translateY(0)";
+                  e.target.style.borderColor = menuColor;
+                }}
+              >
+                {/* Shimmer effect */}
+                <div
+                  style={{
+                    position: "absolute",
                     top: 0,
                     left: 0,
                     right: 0,
                     bottom: 0,
                     background: `linear-gradient(45deg, transparent 30%, ${menuColor}30 50%, transparent 70%)`,
-                    animation: 'shimmer 3s infinite',
-                    pointerEvents: 'none',
+                    animation: "shimmer 3s infinite",
+                    pointerEvents: "none",
                     zIndex: 1,
-                  }} />
+                  }}
+                />
 
-                  <div style={{
-                    width: '16px',
-                    height: '16px',
-                    borderRadius: '50%',
-                    backgroundColor: '#00ff00',
-                    boxShadow: '0 0 12px #00ff00',
-                    animation: 'pulse 2s infinite',
+                <div
+                  style={{
+                    width: "16px",
+                    height: "16px",
+                    borderRadius: "50%",
+                    backgroundColor: "#00ff00",
+                    boxShadow: "0 0 12px #00ff00",
+                    animation: "pulse 2s infinite",
                     zIndex: 2,
-                    position: 'relative',
-                  }} />
+                    position: "relative",
+                  }}
+                />
 
-                  <div style={{
+                <div
+                  style={{
                     flex: 1,
                     zIndex: 2,
-                    position: 'relative',
-                  }}>
-                    <div style={{
-                      color: '#00ffff',
-                      fontSize: '1.2em',
-                      fontWeight: 'bold',
-                      textShadow: '0 0 8px #00ffff',
-                      marginBottom: '4px',
-                    }}>
-                      Slush Wallet
-                    </div>
-                    <div style={{
-                      color: '#ffffff',
-                      fontSize: '0.9em',
-                      opacity: 0.9,
-                    }}>
-                      Secure blockchain authentication
-                    </div>
-                  </div>
-
-                  <div style={{
-                    color: menuColor,
-                    fontSize: '1.5em',
-                    textShadow: `0 0 8px ${menuColor}`,
-                    zIndex: 2,
-                    position: 'relative',
-                  }}>
-                    →
-                  </div>
-                </div>
-
-                <div style={{
-                  background: 'rgba(0, 255, 255, 0.1)',
-                  border: '2px solid #00ffff',
-                  borderRadius: '12px',
-                  padding: '16px',
-                  marginBottom: '15px',
-                  fontSize: '0.9em',
-                }}>
-                  <div style={{
-                    color: '#00ffff',
-                    fontWeight: 'bold',
-                    marginBottom: '8px',
-                    textShadow: '0 0 6px #00ffff',
-                  }}>
-                    🔐 Secure Sign-In Process:
-                  </div>
-                  <div style={{ color: '#ffffff', lineHeight: '1.5' }}>
-                    1. Tap "Connect with Slush Wallet"<br />
-                    2. Get redirected to Slush wallet app<br />
-                    3. Review and sign authentication message<br />
-                    4. Return to SU Messaging automatically
-                  </div>
-                </div>
-
-                <div style={{
-                  textAlign: 'center',
-                  color: menuColor,
-                  fontSize: '0.8em',
-                  opacity: 0.8,
-                  textShadow: `0 0 4px ${menuColor}`,
-                }}>
-                  Your connection is encrypted and secure
-                </div>
-              </div>
-            ) : (
-              <div>
-                <p style={{ marginBottom: '20px', fontSize: '1.1em' }}>
-                  Connect your Slush Wallet to start using SU Messaging:
-                </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {/* Slush Wallet Option Only */}
+                    position: "relative",
+                  }}
+                >
                   <div
-                    onClick={() => {
-                      console.log('Connecting to Slush Wallet');
-                      handleWebConnect();
-                      setShowWalletModal(false);
-                    }}
                     style={{
-                      padding: '20px',
-                      cursor: 'pointer',
-                      background: `linear-gradient(135deg, ${menuColor}10, ${menuColor}20)`,
-                      border: `3px solid ${menuColor}40`,
-                      borderRadius: '16px',
-                      transition: 'all 0.3s ease',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '16px',
-                      fontFamily: 'Orbitron, sans-serif',
-                      fontSize: '1.2em',
-                      fontWeight: '500',
-                      position: 'relative',
-                      overflow: 'hidden',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.target.style.background = `linear-gradient(135deg, ${menuColor}20, ${menuColor}30)`;
-                      e.target.style.borderColor = menuColor;
-                      e.target.style.transform = 'translateY(-3px)';
-                      e.target.style.boxShadow = `0 0 25px ${menuColor}40`;
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.background = `linear-gradient(135deg, ${menuColor}10, ${menuColor}20)`;
-                      e.target.style.borderColor = `${menuColor}40`;
-                      e.target.style.transform = 'translateY(0)';
-                      e.target.style.boxShadow = 'none';
+                      color: "#00ffff",
+                      fontSize: "1.2em",
+                      fontWeight: "bold",
+                      textShadow: "0 0 8px #00ffff",
+                      marginBottom: "4px",
                     }}
                   >
-                    {/* Shimmer effect */}
-                    <div style={{
-                      position: 'absolute',
+                    Slush Wallet
+                  </div>
+                  <div
+                    style={{
+                      color: "#ffffff",
+                      fontSize: "0.9em",
+                      opacity: 0.9,
+                    }}
+                  >
+                    Secure blockchain authentication
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    color: menuColor,
+                    fontSize: "1.5em",
+                    textShadow: `0 0 8px ${menuColor}`,
+                    zIndex: 2,
+                    position: "relative",
+                  }}
+                >
+                  →
+                </div>
+              </div>
+
+              <div
+                style={{
+                  background: "rgba(0, 255, 255, 0.1)",
+                  border: "2px solid #00ffff",
+                  borderRadius: "12px",
+                  padding: "16px",
+                  marginBottom: "15px",
+                  fontSize: "0.9em",
+                }}
+              >
+                <div
+                  style={{
+                    color: "#00ffff",
+                    fontWeight: "bold",
+                    marginBottom: "8px",
+                    textShadow: "0 0 6px #00ffff",
+                  }}
+                >
+                  🔐 Secure Sign-In Process:
+                </div>
+                <div style={{ color: "#ffffff", lineHeight: "1.5" }}>
+                  1. Tap "Connect with Slush Wallet"
+                  <br />
+                  2. Get redirected to Slush wallet app
+                  <br />
+                  3. Review and sign authentication message
+                  <br />
+                  4. Return to SU Messaging automatically
+                </div>
+              </div>
+
+              <div
+                style={{
+                  textAlign: "center",
+                  color: menuColor,
+                  fontSize: "0.8em",
+                  opacity: 0.8,
+                  textShadow: `0 0 4px ${menuColor}`,
+                }}
+              >
+                Your connection is encrypted and secure
+              </div>
+            </div>
+          ) : (
+            <div>
+              <p style={{ marginBottom: "20px", fontSize: "1.1em" }}>
+                Connect your Slush Wallet to start using SU Messaging:
+              </p>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "12px",
+                }}
+              >
+                {/* Slush Wallet Option Only */}
+                <div
+                  onClick={() => {
+                    console.log("Connecting to Slush Wallet");
+                    handleWebConnect();
+                    setShowWalletModal(false);
+                  }}
+                  style={{
+                    padding: "20px",
+                    cursor: "pointer",
+                    background: `linear-gradient(135deg, ${menuColor}10, ${menuColor}20)`,
+                    border: `3px solid ${menuColor}40`,
+                    borderRadius: "16px",
+                    transition: "all 0.3s ease",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "16px",
+                    fontFamily: "Orbitron, sans-serif",
+                    fontSize: "1.2em",
+                    fontWeight: "500",
+                    position: "relative",
+                    overflow: "hidden",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.background = `linear-gradient(135deg, ${menuColor}20, ${menuColor}30)`;
+                    e.target.style.borderColor = menuColor;
+                    e.target.style.transform = "translateY(-3px)";
+                    e.target.style.boxShadow = `0 0 25px ${menuColor}40`;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.background = `linear-gradient(135deg, ${menuColor}10, ${menuColor}20)`;
+                    e.target.style.borderColor = `${menuColor}40`;
+                    e.target.style.transform = "translateY(0)";
+                    e.target.style.boxShadow = "none";
+                  }}
+                >
+                  {/* Shimmer effect */}
+                  <div
+                    style={{
+                      position: "absolute",
                       top: 0,
                       left: 0,
                       right: 0,
                       bottom: 0,
                       background: `linear-gradient(45deg, transparent 30%, ${menuColor}30 50%, transparent 70%)`,
-                      animation: 'shimmer 3s infinite',
-                      pointerEvents: 'none',
+                      animation: "shimmer 3s infinite",
+                      pointerEvents: "none",
                       zIndex: 1,
-                    }} />
+                    }}
+                  />
 
-                    <div style={{
-                      width: '16px',
-                      height: '16px',
-                      borderRadius: '50%',
-                      backgroundColor: '#00ff00',
-                      boxShadow: '0 0 12px #00ff00',
-                      animation: 'pulse 2s infinite',
+                  <div
+                    style={{
+                      width: "16px",
+                      height: "16px",
+                      borderRadius: "50%",
+                      backgroundColor: "#00ff00",
+                      boxShadow: "0 0 12px #00ff00",
+                      animation: "pulse 2s infinite",
                       zIndex: 2,
-                      position: 'relative',
-                    }} />
+                      position: "relative",
+                    }}
+                  />
 
-                    <div style={{
+                  <div
+                    style={{
                       flex: 1,
                       zIndex: 2,
-                      position: 'relative',
-                    }}>
-                      <div style={{
-                        color: '#00ffff',
-                        fontSize: '1.3em',
-                        fontWeight: 'bold',
-                        textShadow: '0 0 8px #00ffff',
-                        marginBottom: '4px',
-                      }}>
-                        Slush Wallet
-                      </div>
-                      <div style={{
-                        color: '#ffffff',
-                        fontSize: '0.9em',
-                        opacity: 0.9,
-                      }}>
-                        Secure blockchain authentication
-                      </div>
+                      position: "relative",
+                    }}
+                  >
+                    <div
+                      style={{
+                        color: "#00ffff",
+                        fontSize: "1.3em",
+                        fontWeight: "bold",
+                        textShadow: "0 0 8px #00ffff",
+                        marginBottom: "4px",
+                      }}
+                    >
+                      Slush Wallet
                     </div>
+                    <div
+                      style={{
+                        color: "#ffffff",
+                        fontSize: "0.9em",
+                        opacity: 0.9,
+                      }}
+                    >
+                      Secure blockchain authentication
+                    </div>
+                  </div>
 
-                    <div style={{
+                  <div
+                    style={{
                       color: menuColor,
-                      fontSize: '1.5em',
+                      fontSize: "1.5em",
                       textShadow: `0 0 8px ${menuColor}`,
                       zIndex: 2,
-                      position: 'relative',
-                    }}>
-                      →
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{
-                  marginTop: '20px',
-                  padding: '16px',
-                  background: 'rgba(0, 255, 255, 0.1)',
-                  border: '2px solid #00ffff',
-                  borderRadius: '12px',
-                  fontSize: '0.9em',
-                }}>
-                  <div style={{
-                    color: '#00ffff',
-                    fontWeight: 'bold',
-                    marginBottom: '8px',
-                    textShadow: '0 0 6px #00ffff',
-                  }}>
-                    🔐 Secure Sign-In Process:
-                  </div>
-                  <div style={{ color: '#ffffff', lineHeight: '1.5' }}>
-                    1. Tap "Slush Wallet" to connect<br />
-                    2. Get redirected to Slush wallet app<br />
-                    3. Review and sign authentication message<br />
-                    4. Return to SU Messaging automatically
+                      position: "relative",
+                    }}
+                  >
+                    →
                   </div>
                 </div>
               </div>
-            )}
-          </Modal.Body>
-          <Modal.Footer
-            style={{
-              background: "linear-gradient(135deg, #1a0033, #440088)",
-              borderTop: `2px solid ${menuColor}`,
-              justifyContent: 'center',
-              padding: '15px',
-            }}
-          >
-            <Button
-              variant="secondary"
-              onClick={() => setShowWalletModal(false)}
-              style={{
-                backgroundColor: "transparent",
-                border: `2px solid ${menuColor}`,
-                color: menuColor,
-                textShadow: "0 0 6px #00ffff",
-                padding: "10px 20px",
-                fontSize: "1em",
-                borderRadius: "12px",
-                transition: "all 0.3s",
-                fontFamily: 'Orbitron, sans-serif',
-                fontWeight: 'bold',
-                minWidth: '120px',
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.backgroundColor = `${menuColor}20`;
-                e.target.style.color = "#00ffff";
-                e.target.style.boxShadow = `0 0 15px ${menuColor}40`;
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.backgroundColor = "transparent";
-                e.target.style.color = menuColor;
-                e.target.style.boxShadow = 'none';
-              }}
-            >
-              Cancel
-            </Button>
-          </Modal.Footer>
-        </Modal>
 
-        {/* Mobile Error Modal */}
-        <MobileErrorModal
-          show={showMobileError}
-          onHide={() => setShowMobileError(false)}
-          error={mobileError}
-          errorType={mobileErrorType}
-          onRetry={handleWebConnect}
-          menuColor={menuColor}
-        />
-
-        {/* Connect Wallet Prompt Popup */}
-        <Modal
-          show={showConnectPrompt}
-          onHide={() => setShowConnectPrompt(false)}
-          centered
-          size="sm"
+              <div
+                style={{
+                  marginTop: "20px",
+                  padding: "16px",
+                  background: "rgba(0, 255, 255, 0.1)",
+                  border: "2px solid #00ffff",
+                  borderRadius: "12px",
+                  fontSize: "0.9em",
+                }}
+              >
+                <div
+                  style={{
+                    color: "#00ffff",
+                    fontWeight: "bold",
+                    marginBottom: "8px",
+                    textShadow: "0 0 6px #00ffff",
+                  }}
+                >
+                  🔐 Secure Sign-In Process:
+                </div>
+                <div style={{ color: "#ffffff", lineHeight: "1.5" }}>
+                  1. Tap "Slush Wallet" to connect
+                  <br />
+                  2. Get redirected to Slush wallet app
+                  <br />
+                  3. Review and sign authentication message
+                  <br />
+                  4. Return to SU Messaging automatically
+                </div>
+              </div>
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer
           style={{
-            background: 'rgba(0, 0, 0, 0.9)',
-            backdropFilter: 'blur(15px)',
+            background: "linear-gradient(135deg, #1a0033, #440088)",
+            borderTop: `2px solid ${menuColor}`,
+            justifyContent: "center",
+            padding: "15px",
           }}
         >
-          <Modal.Body
+          <Button
+            variant="secondary"
+            onClick={() => setShowWalletModal(false)}
             style={{
-              background: 'linear-gradient(135deg, #1a0033, #440088)',
-              border: `3px solid ${menuColor}`,
-              borderRadius: '20px',
-              color: '#00ffff',
-              textAlign: 'center',
-              padding: '30px 20px',
-              fontFamily: 'Orbitron, sans-serif',
-              boxShadow: `0 0 40px ${menuColor}80, inset 0 0 40px ${menuColor}20`,
-              position: 'relative',
-              overflow: 'hidden',
+              backgroundColor: "transparent",
+              border: `2px solid ${menuColor}`,
+              color: menuColor,
+              textShadow: "0 0 6px #00ffff",
+              padding: "10px 20px",
+              fontSize: "1em",
+              borderRadius: "12px",
+              transition: "all 0.3s",
+              fontFamily: "Orbitron, sans-serif",
+              fontWeight: "bold",
+              minWidth: "120px",
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.backgroundColor = `${menuColor}20`;
+              e.target.style.color = "#00ffff";
+              e.target.style.boxShadow = `0 0 15px ${menuColor}40`;
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.backgroundColor = "transparent";
+              e.target.style.color = menuColor;
+              e.target.style.boxShadow = "none";
             }}
           >
-            {/* Animated background effect */}
-            <div style={{
-              position: 'absolute',
+            Cancel
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Mobile Error Modal */}
+      <MobileErrorModal
+        show={showMobileError}
+        onHide={() => setShowMobileError(false)}
+        error={mobileError}
+        errorType={mobileErrorType}
+        onRetry={handleWebConnect}
+        menuColor={menuColor}
+      />
+
+      {/* Connect Wallet Prompt Popup */}
+      <Modal
+        show={showConnectPrompt}
+        onHide={() => setShowConnectPrompt(false)}
+        centered
+        size="sm"
+        style={{
+          background: "rgba(0, 0, 0, 0.9)",
+          backdropFilter: "blur(15px)",
+        }}
+      >
+        <Modal.Body
+          style={{
+            background: "linear-gradient(135deg, #1a0033, #440088)",
+            border: `3px solid ${menuColor}`,
+            borderRadius: "20px",
+            color: "#00ffff",
+            textAlign: "center",
+            padding: "30px 20px",
+            fontFamily: "Orbitron, sans-serif",
+            boxShadow: `0 0 40px ${menuColor}80, inset 0 0 40px ${menuColor}20`,
+            position: "relative",
+            overflow: "hidden",
+          }}
+        >
+          {/* Animated background effect */}
+          <div
+            style={{
+              position: "absolute",
               top: 0,
               left: 0,
               right: 0,
               bottom: 0,
               background: `linear-gradient(45deg, transparent 20%, ${menuColor}15 50%, transparent 80%)`,
-              animation: 'shimmer 2s infinite',
-              pointerEvents: 'none',
+              animation: "shimmer 2s infinite",
+              pointerEvents: "none",
               zIndex: 1,
-            }} />
+            }}
+          />
 
-            <div style={{ position: 'relative', zIndex: 2 }}>
-              <div style={{
-                fontSize: '3em',
-                marginBottom: '15px',
-                textShadow: '0 0 20px #00ffff',
-                animation: 'pulse 2s infinite',
-              }}>
-                🔗
-              </div>
-
-              <h4 style={{
-                color: '#00ffff',
-                textShadow: '0 0 12px #00ffff',
-                marginBottom: '15px',
-                fontSize: '1.4em',
-                fontWeight: 'bold',
-              }}>
-                Connect Your Wallet
-              </h4>
-
-              <p style={{
-                color: '#ffffff',
-                marginBottom: '25px',
-                fontSize: '1em',
-                opacity: 0.9,
-              }}>
-                To access the dashboard and start messaging, please connect your Slush Wallet.
-              </p>
-
-              <Button
-                onClick={() => {
-                  setShowConnectPrompt(false);
-                  const slushWallet = wallets.find(wallet => wallet.name.toLowerCase().includes('slush'));
-                  if (slushWallet) {
-                    console.log('Connecting to Slush Wallet');
-                    connect.mutate({ wallet: slushWallet });
-                  } else {
-                    console.log('Slush Wallet not found, using default connect');
-                    connect.mutate();
-                  }
-                }}
-                style={{
-                  background: `linear-gradient(135deg, ${menuColor}, ${menuColor}dd)`,
-                  border: `2px solid ${menuColor}`,
-                  color: '#00ffff',
-                  textShadow: '0 0 8px #00ffff',
-                  fontSize: '16px',
-                  fontWeight: 'bold',
-                  padding: '12px 30px',
-                  borderRadius: '12px',
-                  fontFamily: 'Orbitron, sans-serif',
-                  boxShadow: `0 0 20px ${menuColor}60`,
-                  transition: 'all 0.3s ease',
-                  minWidth: '160px',
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.boxShadow = `0 0 30px ${menuColor}80`;
-                  e.target.style.transform = 'translateY(-2px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.boxShadow = `0 0 20px ${menuColor}60`;
-                  e.target.style.transform = 'translateY(0)';
-                }}
-              >
-                <span style={{ fontSize: '18px', marginRight: '8px' }}>🔗</span>
-                Connect Wallet
-              </Button>
-
-              <div style={{
-                marginTop: '15px',
-                fontSize: '0.8em',
-                opacity: 0.7,
-                color: '#ffffff',
-              }}>
-                Secure • Encrypted • Decentralized
-              </div>
+          <div style={{ position: "relative", zIndex: 2 }}>
+            <div
+              style={{
+                fontSize: "3em",
+                marginBottom: "15px",
+                textShadow: "0 0 20px #00ffff",
+                animation: "pulse 2s infinite",
+              }}
+            >
+              🔗
             </div>
-          </Modal.Body>
-        </Modal>
-      </div>
+
+            <h4
+              style={{
+                color: "#00ffff",
+                textShadow: "0 0 12px #00ffff",
+                marginBottom: "15px",
+                fontSize: "1.4em",
+                fontWeight: "bold",
+              }}
+            >
+              Connect Your Wallet
+            </h4>
+
+            <p
+              style={{
+                color: "#ffffff",
+                marginBottom: "25px",
+                fontSize: "1em",
+                opacity: 0.9,
+              }}
+            >
+              To access the dashboard and start messaging, please connect your
+              Slush Wallet.
+            </p>
+
+            <Button
+              onClick={() => {
+                setShowConnectPrompt(false);
+                const slushWallet = wallets.find((wallet) =>
+                  wallet.name.toLowerCase().includes("slush")
+                );
+                if (slushWallet) {
+                  console.log("Connecting to Slush Wallet");
+                  connect.mutate({ wallet: slushWallet });
+                } else {
+                  console.log("Slush Wallet not found, using default connect");
+                  connect.mutate();
+                }
+              }}
+              style={{
+                background: `linear-gradient(135deg, ${menuColor}, ${menuColor}dd)`,
+                border: `2px solid ${menuColor}`,
+                color: "#00ffff",
+                textShadow: "0 0 8px #00ffff",
+                fontSize: "16px",
+                fontWeight: "bold",
+                padding: "12px 30px",
+                borderRadius: "12px",
+                fontFamily: "Orbitron, sans-serif",
+                boxShadow: `0 0 20px ${menuColor}60`,
+                transition: "all 0.3s ease",
+                minWidth: "160px",
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.boxShadow = `0 0 30px ${menuColor}80`;
+                e.target.style.transform = "translateY(-2px)";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.boxShadow = `0 0 20px ${menuColor}60`;
+                e.target.style.transform = "translateY(0)";
+              }}
+            >
+              <span style={{ fontSize: "18px", marginRight: "8px" }}>🔗</span>
+              Connect Wallet
+            </Button>
+
+            <div
+              style={{
+                marginTop: "15px",
+                fontSize: "0.8em",
+                opacity: 0.7,
+                color: "#ffffff",
+              }}
+            >
+              Secure • Encrypted • Decentralized
+            </div>
+          </div>
+        </Modal.Body>
+      </Modal>
+    </div>
   );
 }
 
@@ -1237,16 +1377,14 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SuiClientProvider 
+      <SuiClientProvider
         networks={{
           mainnet: { url: "https://fullnode.mainnet.sui.io:443" },
-          testnet: { url: "https://fullnode.testnet.sui.io:443" }
-        }} 
+          testnet: { url: "https://fullnode.testnet.sui.io:443" },
+        }}
         defaultNetwork="mainnet"
       >
-        <WalletProvider
-          autoConnect={true}
-        >
+        <WalletProvider autoConnect={true}>
           <Router>
             <AppContent />
           </Router>
