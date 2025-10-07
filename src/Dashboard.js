@@ -19,7 +19,7 @@ function Dashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [menuColor, setMenuColor] = useState("#ff00ff"); // Sync with App.js default
   const [isLoadingChats, setIsLoadingChats] = useState(false);
-  const [mobileView, setMobileView] = useState("start"); // "start", "chats", or "people" for mobile
+  const [mobileView, setMobileView] = useState("chats"); // "start", "chats", or "people" for mobile
   const [showCallPopup, setShowCallPopup] = useState(false);
   const navigate = useNavigate();
   const currentAccount = useCurrentAccount();
