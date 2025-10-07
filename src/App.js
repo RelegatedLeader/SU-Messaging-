@@ -11,7 +11,6 @@ import {
   useWallets,
   useDisconnectWallet,
   useSignPersonalMessage,
-  ConnectButton,
 } from "@mysten/dapp-kit"; // Updated to use the new dapp-kit
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SuiClient } from "@mysten/sui/client";
@@ -242,7 +241,6 @@ function AppContent() {
   const currentWallet = useCurrentWallet();
   const isConnected = !!currentAccount;
   const [showWalletDropdown, setShowWalletDropdown] = useState(false);
-  const [showWalletConnectModal, setShowWalletConnectModal] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -468,7 +466,7 @@ function AppContent() {
                     </div>
                   </div>
                 ) : (
-                  // Mobile Disconnected State - Styled ConnectButton wrapper
+                  // Mobile Disconnected State - Custom Slush Wallet Button
                   <div className="mobile-connect-container" style={{ width: '100%', padding: '0 16px' }}>
                     <div
                       className="cyberpunk-connect-wrapper"
@@ -481,6 +479,17 @@ function AppContent() {
                         borderRadius: '16px',
                         boxShadow: `0 0 25px ${menuColor}60, inset 0 0 25px ${menuColor}20`,
                         overflow: 'hidden',
+                        cursor: 'pointer',
+                      }}
+                      onClick={() => {
+                        const slushWallet = wallets.find(wallet => wallet.name.toLowerCase().includes('slush'));
+                        if (slushWallet) {
+                          console.log('Connecting to Slush Wallet');
+                          connect.mutate({ wallet: slushWallet });
+                        } else {
+                          console.log('Slush Wallet not found, using default connect');
+                          connect.mutate();
+                        }
                       }}
                     >
                       <div style={{
@@ -494,7 +503,7 @@ function AppContent() {
                         pointerEvents: 'none',
                         zIndex: 1,
                       }} />
-                      <ConnectButton
+                      <div
                         className="cyberpunk-connect-button"
                         style={{
                           width: '100%',
@@ -514,7 +523,10 @@ function AppContent() {
                           gap: '12px',
                           padding: '16px 24px',
                         }}
-                      />
+                      >
+                        <span style={{ fontSize: '20px' }}>🔗</span>
+                        Connect Wallet
+                      </div>
                     </div>
                   </div>
                 )
@@ -597,9 +609,18 @@ function AppContent() {
                   </Button>
                 </div>
               ) : (
-                // Modern wallet selector - Modal trigger
+                // Desktop Disconnected State - Custom Slush Wallet Button
                 <Button
-                  onClick={() => setShowWalletConnectModal(true)}
+                  onClick={() => {
+                    const slushWallet = wallets.find(wallet => wallet.name.toLowerCase().includes('slush'));
+                    if (slushWallet) {
+                      console.log('Connecting to Slush Wallet');
+                      connect.mutate({ wallet: slushWallet });
+                    } else {
+                      console.log('Slush Wallet not found, using default connect');
+                      connect.mutate();
+                    }
+                  }}
                   style={{
                     backgroundColor: menuColor,
                     border: `2px solid ${menuColor}`,
@@ -1092,150 +1113,6 @@ function AppContent() {
           onRetry={handleWebConnect}
           menuColor={menuColor}
         />
-
-        {/* Desktop Wallet Connect Modal */}
-        <Modal
-          show={showWalletConnectModal}
-          onHide={() => setShowWalletConnectModal(false)}
-          centered
-          size="md"
-          style={{
-            background: 'rgba(0, 0, 0, 0.9)',
-            backdropFilter: 'blur(10px)',
-          }}
-        >
-          <Modal.Header
-            style={{
-              background: 'linear-gradient(135deg, #1a0033, #330066)',
-              borderBottom: `2px solid ${menuColor}`,
-              color: '#00ffff',
-              fontFamily: 'Orbitron, sans-serif',
-            }}
-          >
-            <Modal.Title style={{ textShadow: '0 0 12px #00ffff' }}>
-              🔗 Connect Wallet
-            </Modal.Title>
-          </Modal.Header>
-          <Modal.Body
-            style={{
-              background: '#1a0033',
-              color: '#00ffff',
-              textShadow: '0 0 4px #ff00ff',
-              padding: '25px',
-            }}
-          >
-            <p style={{ marginBottom: '20px', fontSize: '1.1em' }}>
-              Choose your wallet to connect and start using SU Messaging:
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {wallets.map((wallet, index) => (
-                <div
-                  key={wallet.name}
-                  onClick={() => {
-                    console.log('Connecting to wallet:', wallet);
-                    connect.mutate({ wallet });
-                    setShowWalletConnectModal(false);
-                  }}
-                  style={{
-                    padding: '16px 20px',
-                    cursor: 'pointer',
-                    background: `linear-gradient(135deg, ${menuColor}10, ${menuColor}20)`,
-                    border: `2px solid ${menuColor}40`,
-                    borderRadius: '12px',
-                    transition: 'all 0.3s ease',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '16px',
-                    fontFamily: 'Orbitron, sans-serif',
-                    fontSize: '1.1em',
-                    fontWeight: '500',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.background = `linear-gradient(135deg, ${menuColor}20, ${menuColor}30)`;
-                    e.target.style.borderColor = menuColor;
-                    e.target.style.transform = 'translateY(-2px)';
-                    e.target.style.boxShadow = `0 0 20px ${menuColor}40`;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.background = `linear-gradient(135deg, ${menuColor}10, ${menuColor}20)`;
-                    e.target.style.borderColor = `${menuColor}40`;
-                    e.target.style.transform = 'translateY(0)';
-                    e.target.style.boxShadow = 'none';
-                  }}
-                >
-                  <div style={{
-                    width: '12px',
-                    height: '12px',
-                    borderRadius: '50%',
-                    backgroundColor: menuColor,
-                    boxShadow: `0 0 8px ${menuColor}`,
-                    animation: 'pulse 2s infinite',
-                  }} />
-                  <span style={{
-                    color: '#00ffff',
-                    textShadow: '0 0 6px #00ffff',
-                  }}>
-                    {wallet.name}
-                  </span>
-                  <div style={{ marginLeft: 'auto' }}>
-                    <span style={{
-                      color: menuColor,
-                      fontSize: '1.2em',
-                      textShadow: `0 0 8px ${menuColor}`,
-                    }}>
-                      →
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div style={{
-              marginTop: '20px',
-              padding: '12px',
-              background: 'rgba(0, 255, 255, 0.1)',
-              border: '1px solid #00ffff',
-              borderRadius: '8px',
-            }}>
-              <strong style={{ color: '#00ffff' }}>🔐 Secure Connection:</strong>
-              <br />
-              <small style={{ color: '#ffffff' }}>
-                Your wallet connection is secure and encrypted. You'll be redirected to sign an authentication message to prove ownership.
-              </small>
-            </div>
-          </Modal.Body>
-          <Modal.Footer
-            style={{
-              background: 'linear-gradient(135deg, #1a0033, #330066)',
-              borderTop: `2px solid ${menuColor}`,
-            }}
-          >
-            <Button
-              variant="secondary"
-              onClick={() => setShowWalletConnectModal(false)}
-              style={{
-                backgroundColor: 'transparent',
-                borderColor: menuColor,
-                color: menuColor,
-                textShadow: '0 0 4px #00ffff',
-                padding: '6px 15px',
-                fontSize: '1em',
-                borderRadius: '8px',
-                transition: 'all 0.3s',
-                fontFamily: 'Orbitron, sans-serif',
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.backgroundColor = `${menuColor}20`;
-                e.target.style.color = '#00ffff';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.backgroundColor = 'transparent';
-                e.target.style.color = menuColor;
-              }}
-            >
-              Cancel
-            </Button>
-          </Modal.Footer>
-        </Modal>
       </div>
   );
 }
