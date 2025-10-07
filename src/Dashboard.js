@@ -11,6 +11,69 @@ import { useNavigate, Link } from "react-router-dom";
 import { useCurrentAccount } from "@mysten/dapp-kit";
 import { SuiClient } from "@mysten/sui/client";
 import Long from "long"; // Added for timestamp handling
+import { decryptMessage } from "./utils/encryption";
+import { retrieveFromWalrus } from "./utils/walrus";
+import { retrieveFromIPFS } from "./utils/ipfs";
+
+// Simple key derivation from addresses (for testing - in production use proper key exchange)
+function deriveSharedKeyFromAddresses(address1, address2) {
+  // Sort addresses to ensure consistent key derivation regardless of order
+  const [addr1, addr2] = [address1, address2].sort();
+
+  // Create a deterministic key from the address pair
+  const combined = addr1 + addr2 + 'su-messaging-salt';
+
+  // Use Web Crypto API to hash and get raw bytes
+  const encoder = new TextEncoder();
+  const data = encoder.encode(combined);
+
+  return crypto.subtle.digest('SHA-256', data).then(hash => {
+    return new Uint8Array(hash);
+  });
+}
+
+// Helper function to decrypt a message from storage (same as in Chat.js)
+const decryptMessageFromStorage = async (metadataString, senderAddress, recipientAddress) => {
+  try {
+    const metadata = JSON.parse(metadataString);
+
+    if (metadata.version === "sui-compressed-v1" && metadata.compressedData) {
+      // Ultimate fallback: compressed data stored on Sui
+      console.log("Decrypting from Sui compressed fallback storage");
+      const encryptedData = atob(metadata.compressedData); // Decompress
+      const sharedKey = await deriveSharedKeyFromAddresses(senderAddress, recipientAddress);
+      const decryptedContent = await decryptMessage(encryptedData, sharedKey);
+      return decryptedContent;
+    } else if (metadata.version === "ipfs-fallback-v1" && metadata.cid) {
+      // IPFS decentralized fallback
+      console.log("Decrypting from IPFS decentralized fallback, CID:", metadata.cid);
+      const encryptedData = await retrieveFromIPFS(metadata.cid);
+      const sharedKey = await deriveSharedKeyFromAddresses(senderAddress, recipientAddress);
+      const decryptedContent = await decryptMessage(encryptedData, sharedKey);
+      return decryptedContent;
+    } else if (metadata.version === "sui-fallback-v1" && metadata.encryptedData) {
+      // Legacy fallback: encrypted data stored directly on Sui
+      console.log("Decrypting from Sui fallback storage");
+      const sharedKey = await deriveSharedKeyFromAddresses(senderAddress, recipientAddress);
+      const decryptedContent = await decryptMessage(metadata.encryptedData, sharedKey);
+      return decryptedContent;
+    } else if (metadata.version === "walrus-v1" && metadata.blobId) {
+      // Normal Walrus storage
+      console.log("Decrypting from Walrus storage, blobId:", metadata.blobId);
+      const encryptedData = await retrieveFromWalrus(metadata.blobId);
+      const sharedKey = await deriveSharedKeyFromAddresses(senderAddress, recipientAddress);
+      const decryptedContent = await decryptMessage(encryptedData, sharedKey);
+      return decryptedContent;
+    } else {
+      // Fallback for old format (plain text)
+      return metadataString;
+    }
+  } catch (error) {
+    console.error('Failed to decrypt message from storage:', error);
+    // Return a placeholder indicating decryption failed
+    return "[Message temporarily unavailable]";
+  }
+};
 
 function Dashboard() {
   const [recipientAddress, setRecipientAddress] = useState("");
@@ -103,9 +166,14 @@ function Dashboard() {
                   });
                   
                   if (messageObject.data?.content?.fields?.encrypted_content) {
-                    lastMessage = new TextDecoder().decode(
+                    const encryptedMetadata = new TextDecoder().decode(
                       new Uint8Array(messageObject.data.content.fields.encrypted_content)
                     );
+
+                    // Decrypt the message content
+                    const sender = messageObject.data.content.fields.sender;
+                    const recipient = messageObject.data.content.fields.recipient;
+                    lastMessage = await decryptMessageFromStorage(encryptedMetadata, sender, recipient);
                   } else {
                     lastMessage = "No content available";
                   }
