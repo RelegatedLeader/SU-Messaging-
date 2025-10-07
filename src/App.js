@@ -179,6 +179,7 @@ function AppContent() {
   const [userName, setUserName] = useState("");
   const [menuColor, setMenuColor] = useState("#ff00ff"); // Default to pink from Chat.js
   const [showWalletModal, setShowWalletModal] = useState(false);
+  const [showConnectPrompt, setShowConnectPrompt] = useState(false);
   const connect = useConnectWallet({
     onSuccess: () => {
       console.log('Wallet connected successfully');
@@ -316,7 +317,7 @@ function AppContent() {
   const handleDashboardClick = (e) => {
     if (!isConnected) {
       e.preventDefault();
-      setShowWalletModal(true);
+      setShowConnectPrompt(true);
     }
   };
 
@@ -1109,6 +1110,124 @@ function AppContent() {
           onRetry={handleWebConnect}
           menuColor={menuColor}
         />
+
+        {/* Connect Wallet Prompt Popup */}
+        <Modal
+          show={showConnectPrompt}
+          onHide={() => setShowConnectPrompt(false)}
+          centered
+          size="sm"
+          style={{
+            background: 'rgba(0, 0, 0, 0.9)',
+            backdropFilter: 'blur(15px)',
+          }}
+        >
+          <Modal.Body
+            style={{
+              background: 'linear-gradient(135deg, #1a0033, #440088)',
+              border: `3px solid ${menuColor}`,
+              borderRadius: '20px',
+              color: '#00ffff',
+              textAlign: 'center',
+              padding: '30px 20px',
+              fontFamily: 'Orbitron, sans-serif',
+              boxShadow: `0 0 40px ${menuColor}80, inset 0 0 40px ${menuColor}20`,
+              position: 'relative',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Animated background effect */}
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: `linear-gradient(45deg, transparent 20%, ${menuColor}15 50%, transparent 80%)`,
+              animation: 'shimmer 2s infinite',
+              pointerEvents: 'none',
+              zIndex: 1,
+            }} />
+
+            <div style={{ position: 'relative', zIndex: 2 }}>
+              <div style={{
+                fontSize: '3em',
+                marginBottom: '15px',
+                textShadow: '0 0 20px #00ffff',
+                animation: 'pulse 2s infinite',
+              }}>
+                🔗
+              </div>
+
+              <h4 style={{
+                color: '#00ffff',
+                textShadow: '0 0 12px #00ffff',
+                marginBottom: '15px',
+                fontSize: '1.4em',
+                fontWeight: 'bold',
+              }}>
+                Connect Your Wallet
+              </h4>
+
+              <p style={{
+                color: '#ffffff',
+                marginBottom: '25px',
+                fontSize: '1em',
+                opacity: 0.9,
+              }}>
+                To access the dashboard and start messaging, please connect your Slush Wallet.
+              </p>
+
+              <Button
+                onClick={() => {
+                  setShowConnectPrompt(false);
+                  const slushWallet = wallets.find(wallet => wallet.name.toLowerCase().includes('slush'));
+                  if (slushWallet) {
+                    console.log('Connecting to Slush Wallet');
+                    connect.mutate({ wallet: slushWallet });
+                  } else {
+                    console.log('Slush Wallet not found, using default connect');
+                    connect.mutate();
+                  }
+                }}
+                style={{
+                  background: `linear-gradient(135deg, ${menuColor}, ${menuColor}dd)`,
+                  border: `2px solid ${menuColor}`,
+                  color: '#00ffff',
+                  textShadow: '0 0 8px #00ffff',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  padding: '12px 30px',
+                  borderRadius: '12px',
+                  fontFamily: 'Orbitron, sans-serif',
+                  boxShadow: `0 0 20px ${menuColor}60`,
+                  transition: 'all 0.3s ease',
+                  minWidth: '160px',
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.boxShadow = `0 0 30px ${menuColor}80`;
+                  e.target.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.boxShadow = `0 0 20px ${menuColor}60`;
+                  e.target.style.transform = 'translateY(0)';
+                }}
+              >
+                <span style={{ fontSize: '18px', marginRight: '8px' }}>🔗</span>
+                Connect Wallet
+              </Button>
+
+              <div style={{
+                marginTop: '15px',
+                fontSize: '0.8em',
+                opacity: 0.7,
+                color: '#ffffff',
+              }}>
+                Secure • Encrypted • Decentralized
+              </div>
+            </div>
+          </Modal.Body>
+        </Modal>
       </div>
   );
 }
