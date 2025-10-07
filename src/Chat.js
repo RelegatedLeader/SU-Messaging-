@@ -350,49 +350,18 @@ function Chat() {
         
         // Combine all messages
         const allMessages = [...existingConfirmedMessages, ...confirmedMessages, ...remainingOptimisticMessages];
-        
-        // Aggressive deduplication: remove messages that are clearly duplicates
+
+        // Simple deduplication by message ID - IDs should be unique
         const uniqueMessages = [];
-        const messageMap = new Map(); // key -> best message
-        
+        const seenIds = new Set();
+
         for (const message of allMessages) {
-          const clientTime = message.clientTimestampMs || message.timestampMs;
-          const key = `${message.sender}-${message.recipient}-${message.content.trim()}`;
-          
-          if (messageMap.has(key)) {
-            const existing = messageMap.get(key);
-            const existingTime = existing.clientTimestampMs || existing.timestampMs;
-            
-            // If timestamps are very close (within 30 seconds), prefer confirmed over optimistic
-            if (Math.abs(clientTime - existingTime) < 30000) {
-              if (message.status === 'confirmed' && existing.status !== 'confirmed') {
-                console.log('Replacing optimistic with confirmed:', message.content.substring(0, 30));
-                messageMap.set(key, message); // Replace with confirmed
-              } else if (message.status !== 'confirmed' && existing.status === 'confirmed') {
-                // Keep existing confirmed message
-              } else {
-                // Same status, keep the one with more recent timestamp
-                if (clientTime > existingTime) {
-                  messageMap.set(key, message);
-                }
-              }
-            } else {
-              // Different timestamps, these are different messages (not duplicates)
-              console.log('Different timestamps for same content, keeping both:', {
-                content: message.content.substring(0, 30),
-                time1: new Date(existingTime).toLocaleTimeString(),
-                time2: new Date(clientTime).toLocaleTimeString()
-              });
-              uniqueMessages.push(message);
-            }
-          } else {
-            messageMap.set(key, message);
+          if (!seenIds.has(message.id)) {
+            uniqueMessages.push(message);
+            seenIds.add(message.id);
           }
         }
-        
-        // Convert map back to array
-        messageMap.forEach(message => uniqueMessages.push(message));
-        
+
         // Sort by client timestamp (when send button was clicked)
         return sortMessagesByTimestamp(uniqueMessages);
       });
