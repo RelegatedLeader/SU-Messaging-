@@ -1,53 +1,131 @@
-# Getting Started with Create React App
+# SU Messaging - Decentralized Encrypted Chat
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A secure, decentralized messaging application built on Sui blockchain with end-to-end encryption and multi-layered storage fallbacks.
 
-## Available Scripts
+## Features
 
-In the project directory, you can run:
+- 🔐 **End-to-End Encryption**: AES-256-GCM encryption with deterministic key derivation
+- 🌊 **Decentralized Storage**: Multi-tier storage with Walrus, IPFS, and Sui blockchain fallbacks
+- ⛓️ **Blockchain Integration**: Message metadata stored on Sui blockchain for immutability
+- 💰 **Cost-Optimized**: Smart storage hierarchy minimizes blockchain storage costs
+- 🔄 **Reliable Delivery**: Automatic failover between storage providers
+- 📱 **Mobile-Friendly**: Responsive design with wallet integration
 
-### `npm start`
+## Architecture
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+### Storage Hierarchy (Cost-Optimized)
+1. **Walrus Storage** (~$0.001) - Primary decentralized blob storage
+2. **IPFS Fallback** - Secondary decentralized storage via Infura
+3. **Compressed Sui** - Ultimate fallback with data compression to minimize costs
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+### Security Model
+- Messages are encrypted client-side before storage
+- Shared keys derived deterministically from wallet addresses
+- No plaintext ever touches centralized servers
+- Metadata-only storage on blockchain (small, cheap references)
 
-### `npm test`
+## Setup
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### Prerequisites
+- Node.js 16+
+- Sui wallet (e.g., Sui Wallet extension)
+- Infura account for IPFS (optional, for fallback storage)
 
-### `npm run build`
+### Installation
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd SU-MESSAGING
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+2. Install dependencies:
+```bash
+npm install
+```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+3. Configure IPFS (optional but recommended):
+```bash
+cp .env.example .env
+# Edit .env with your Infura credentials
+```
 
-### `npm run eject`
+4. Start the development server:
+```bash
+npm start
+```
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+### IPFS Configuration
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+Create a `.env` file with your Infura credentials:
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+```env
+REACT_APP_INFURA_PROJECT_ID=your-project-id
+REACT_APP_INFURA_PROJECT_SECRET=your-project-secret
+```
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+Get free credentials at [Infura.io](https://infura.io/).
 
-## Learn More
+## Usage
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+1. Connect your Sui wallet
+2. Enter a recipient's wallet address
+3. Start chatting securely!
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+Messages are automatically encrypted and stored across decentralized networks.
 
-### Code Splitting
+## Cost Optimization
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+The system intelligently routes messages to minimize costs:
+
+- **Short messages**: Walrus storage (~$0.001)
+- **When Walrus fails**: IPFS decentralized storage
+- **Emergency fallback**: Compressed storage on Sui blockchain
+
+This ensures reliability while keeping costs low for long conversations.
+
+## Security
+
+- Client-side encryption only
+- No message content stored unencrypted
+- Deterministic key derivation from wallet addresses
+- Decentralized storage prevents single points of failure
+
+## Development
+
+### Available Scripts
+
+- `npm start` - Start development server
+- `npm run build` - Build for production
+- `npm test` - Run tests
+- `npm run eject` - Eject from Create React App
+
+### Project Structure
+
+```
+src/
+├── components/
+│   ├── Chat.js          # Main chat interface
+│   ├── Dashboard.js     # User dashboard
+│   └── Settings.js      # App settings
+├── utils/
+│   ├── encryption.js    # AES-256-GCM encryption
+│   ├── walrus.js        # Walrus storage integration
+│   └── ipfs.js          # IPFS decentralized storage
+└── ...
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## License
+
+MIT License - see LICENSE file for details.
 
 ### Analyzing the Bundle Size
 

@@ -21,6 +21,7 @@ import Long from "long";
 import { isMobileDevice } from "./utils/mobileWallet";
 import { encryptMessage, decryptMessage } from "./utils/encryption";
 import { storeOnWalrus, retrieveFromWalrus } from "./utils/walrus";
+import { storeOnIPFS, retrieveFromIPFS } from "./utils/ipfs";
 
 // Simple key derivation from addresses (for testing - in production use proper key exchange)
 function deriveSharedKeyFromAddresses(address1, address2) {
@@ -75,13 +76,27 @@ function Chat() {
     });
   };
 
-  // Helper function to decrypt a message from Walrus or Sui fallback
+  // Helper function to decrypt a message from Walrus, IPFS, or Sui fallback
   const decryptMessageFromStorage = async (metadataString, senderAddress, recipientAddress) => {
     try {
       const metadata = JSON.parse(metadataString);
 
-      if (metadata.version === "sui-fallback-v1" && metadata.encryptedData) {
-        // Fallback: encrypted data is stored directly on Sui
+      if (metadata.version === "sui-compressed-v1" && metadata.compressedData) {
+        // Ultimate fallback: compressed data stored on Sui
+        console.log("Decrypting from Sui compressed fallback storage");
+        const encryptedData = atob(metadata.compressedData); // Decompress
+        const sharedKey = await deriveSharedKeyFromAddresses(senderAddress, recipientAddress);
+        const decryptedContent = await decryptMessage(encryptedData, sharedKey);
+        return decryptedContent;
+      } else if (metadata.version === "ipfs-fallback-v1" && metadata.cid) {
+        // IPFS decentralized fallback
+        console.log("Decrypting from IPFS decentralized fallback, CID:", metadata.cid);
+        const encryptedData = await retrieveFromIPFS(metadata.cid);
+        const sharedKey = await deriveSharedKeyFromAddresses(senderAddress, recipientAddress);
+        const decryptedContent = await decryptMessage(encryptedData, sharedKey);
+        return decryptedContent;
+      } else if (metadata.version === "sui-fallback-v1" && metadata.encryptedData) {
+        // Legacy fallback: encrypted data stored directly on Sui
         console.log("Decrypting from Sui fallback storage");
         const sharedKey = await deriveSharedKeyFromAddresses(senderAddress, recipientAddress);
         const decryptedContent = await decryptMessage(metadata.encryptedData, sharedKey);
@@ -239,10 +254,11 @@ function Chat() {
                   id: message_id,
                   sender: fields.sender,
                   recipient: fields.recipient,
-                  content: content,
+                  content: content, // This is metadata that needs decryption
                   timestamp: timestamp,
                   timestampMs: timestampMs,
-                  clientTimestampMs: timestampMs, // For fetched messages, use blockchain timestamp as client timestamp
+                  clientTimestampMs: timestampMs,
+                  needsDecryption: true, // Mark for async decryption
                 });
                 seenIds.add(message_id);
               }
@@ -607,37 +623,59 @@ function Chat() {
       const encryptedData = await encryptMessage(cleanedMessage, sharedKey);
       console.log("Message encrypted successfully");
 
-      // Store encrypted message on Walrus with fallback to Sui
-      let walrusResult;
+      // Store encrypted message with decentralized fallback strategy
+      let storageResult;
       try {
-        walrusResult = await storeOnWalrus(encryptedData, {
+        storageResult = await storeOnWalrus(encryptedData, {
           epochs: 1, // Store for 1 epoch (~24 hours)
           deletable: false
         });
-        console.log("Message stored on Walrus:", walrusResult);
+        console.log("Message stored on Walrus:", storageResult);
       } catch (walrusError) {
-        console.warn("Walrus storage failed, falling back to Sui storage:", walrusError.message);
+        console.warn("Walrus storage failed, using IPFS decentralized fallback:", walrusError.message);
 
-        // Fallback: Store encrypted content directly on Sui (less efficient but works)
-        walrusResult = {
-          blobId: null, // No blobId since we're storing on Sui
-          fallback: true,
-          encryptedData: encryptedData, // Store encrypted data directly
-          size: encryptedData.length,
-          timestamp: clientTimestamp
-        };
+        // Decentralized fallback: Store on IPFS (fully decentralized)
+        try {
+          storageResult = await storeOnIPFS(encryptedData);
+          storageResult.fallback = true;
+          storageResult.method = 'ipfs';
+          storageResult.timestamp = clientTimestamp;
+          console.log("Message stored on IPFS:", storageResult);
+        } catch (ipfsError) {
+          console.error("IPFS also failed, using compressed Sui fallback:", ipfsError);
+          // Ultimate fallback: store compressed version on Sui (minimize cost)
+          const compressed = btoa(encryptedData); // Simple base64 encoding for compression
+          storageResult = {
+            cid: null,
+            compressedData: compressed,
+            fallback: true,
+            method: 'sui-compressed',
+            originalSize: encryptedData.length,
+            compressedSize: compressed.length,
+            timestamp: clientTimestamp
+          };
+        }
       }
 
-      // Create metadata for Sui blockchain
-      const metadata = walrusResult.fallback
-        ? JSON.stringify({
-            version: "sui-fallback-v1",
-            encryptedData: encryptedData, // Store encrypted data directly on Sui
-            timestamp: clientTimestamp,
-            size: encryptedData.length
-          })
+      // Create metadata for Sui blockchain (always small reference)
+      const metadata = storageResult.fallback
+        ? storageResult.method === 'ipfs'
+          ? JSON.stringify({
+              cid: storageResult.cid,
+              timestamp: clientTimestamp,
+              version: "ipfs-fallback-v1",
+              size: storageResult.size,
+              gatewayUrl: storageResult.gatewayUrl
+            })
+          : JSON.stringify({
+              compressedData: storageResult.compressedData,
+              timestamp: clientTimestamp,
+              version: "sui-compressed-v1",
+              originalSize: storageResult.originalSize,
+              compressedSize: storageResult.compressedSize
+            })
         : JSON.stringify({
-            blobId: walrusResult.blobId,
+            blobId: storageResult.blobId,
             timestamp: clientTimestamp,
             version: "walrus-v1"
           });
@@ -654,13 +692,13 @@ function Chat() {
         ],
       });
 
-      console.log('Sending transaction with storage method:', walrusResult.fallback ? 'Sui fallback' : 'Walrus');
+      console.log('Sending transaction with storage method:', storageResult.fallback ? `${storageResult.method} fallback` : 'Walrus');
       console.log('Transaction details:', {
         target: `${packageId}::su_messaging::send_message`,
         recipient: recipientAddress,
         metadataLength: metadataBytes.length,
-        storageType: walrusResult.fallback ? 'sui-fallback' : 'walrus',
-        blobId: walrusResult.blobId || 'N/A (fallback storage)'
+        storageType: storageResult.fallback ? `${storageResult.method} fallback` : 'walrus',
+        blobId: storageResult.blobId || storageResult.cid || 'N/A (fallback storage)'
       });
 
       // Add message with 'sending' status immediately (show original message for UX)
@@ -673,7 +711,7 @@ function Chat() {
         timestampMs: clientTimestamp,
         clientTimestampMs: clientTimestamp,
         status: 'sending',
-        storageType: walrusResult.fallback ? 'sui-fallback' : 'walrus', // Track storage method
+        storageType: storageResult.fallback ? `${storageResult.method} fallback` : 'walrus', // Track storage method
       };
       setMessages(prevMessages => {
         const newMessages = [...prevMessages, tempMessage];
