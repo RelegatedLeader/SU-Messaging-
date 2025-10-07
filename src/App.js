@@ -320,17 +320,10 @@ function AppContent() {
     }
   };
 
-  const handleWebConnect = async () => {
-    try {
-      // Connect to wallet - dapp-kit will handle Slush wallet detection and mobile redirects
-      await connect();
-    } catch (error) {
-      console.error("Wallet connection failed:", error);
-      const errorType = parseMobileError(error);
-      setMobileError(error);
-      setMobileErrorType(errorType);
-      setShowMobileError(true);
-    }
+  const handleWebConnect = () => {
+    // Connect to wallet - dapp-kit will handle Slush wallet detection and mobile redirects
+    // Error handling is done in the useConnectWallet hook callbacks
+    connect.mutate();
   };
 
   // Enhanced mobile detection
