@@ -543,7 +543,7 @@ function Chat() {
         throw new Error("Cannot send message to yourself");
       }
 
-      const cleanedMessage = message.trim().replace(/\s+/g, " ").slice(0, 100);
+      const cleanedMessage = message.trim().replace(/\s+/g, " ");
       const content = new TextEncoder().encode(cleanedMessage);
 
       const tx = new Transaction();
